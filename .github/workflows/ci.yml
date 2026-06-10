@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  detect-services:
+    name: Detect affected services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.detect.outputs.services }}
+      has_services: ${{ steps.detect.outputs.has_services }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect service changes
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git diff --name-only "origin/${{ github.base_ref }}...HEAD" > changed-files.txt
+          else
+            git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" > changed-files.txt
+          fi
+
+          echo "Changed files:"
+          cat changed-files.txt
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          services = [
+              {
+                  "name": "ai-investigation-service",
+                  "path": "services/ai-investigation-service",
+              },
+              {
+                  "name": "correlation-service",
+                  "path": "services/correlation-service",
+              },
+              {
+                  "name": "gateway-service",
+                  "path": "services/gateway-service",
+              },
+              {
+                  "name": "incident-service",
+                  "path": "services/incident-service",
+              },
+              {
+                  "name": "ingestion-service",
+                  "path": "services/ingestion-service",
+              },
+          ]
+
+          changed = [
+              line.strip().replace("\\", "/")
+              for line in Path("changed-files.txt").read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+
+          shared_or_platform_change = any(
+              path.startswith("shared/")
+              or path.startswith("infrastructure/docker/")
+              or path.startswith(".github/workflows/")
+              or path in {".python-version", "pyproject.toml"}
+              for path in changed
+          )
+
+          if shared_or_platform_change:
+              affected = services
+          else:
+              affected = [
+                  service
+                  for service in services
+                  if any(path.startswith(f"{service['path']}/") for path in changed)
+              ]
+
+          services_json = json.dumps(affected, separators=(",", ":"))
+          output_path = os.environ["GITHUB_OUTPUT"]
+          with open(output_path, "a", encoding="utf-8") as output:
+              output.write(f"services={services_json}\n")
+              output.write(f"has_services={'true' if affected else 'false'}\n")
+
+          print(f"Affected services: {services_json}")
+          PY
+
+  service-container-checks:
+    name: Build and test ${{ matrix.service.name }} container
+    needs: detect-services
+    if: needs.detect-services.outputs.has_services == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.detect-services.outputs.services) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build runtime image
+        run: |
+          docker build \
+            --pull \
+            --file "${{ matrix.service.path }}/Dockerfile" \
+            --tag "rootpilot/${{ matrix.service.name }}:ci" \
+            .
+
+      - name: Build test image
+        run: |
+          docker build \
+            --pull \
+            --file infrastructure/docker/python-service-test.Dockerfile \
+            --build-arg "SERVICE_PATH=${{ matrix.service.path }}" \
+            --tag "rootpilot/${{ matrix.service.name }}:test" \
+            .
+
+      - name: Compile Python files in container
+        run: |
+          docker run --rm "rootpilot/${{ matrix.service.name }}:test" \
+            python -m compileall shared service/app
+
+      - name: Run tests in container
+        run: |
+          docker run --rm "rootpilot/${{ matrix.service.name }}:test" \
+            python -m pytest shared service/tests
+
+  no-service-changes:
+    name: No service container checks needed
+    needs: detect-services
+    if: needs.detect-services.outputs.has_services == 'false'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Report skipped checks
+        run: echo "No service, shared, or platform CI files changed."

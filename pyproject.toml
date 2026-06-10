@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rootpilot-platform"
+version = "0.1.0"
+description = "Autonomous incident investigation platform for distributed systems and cloud-native infrastructure."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "pydantic-settings",
+    "langgraph",
+    "openai",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "shared",
+    "services",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
+python_classes = [
+    "Test*",
+]
+python_functions = [
+    "test_*",
+]
+
+[tool.setuptools.packages.find]
+include = [
+    "shared*",
+]
+exclude = [
+    "datasets*",
+    "docs*",
+    "examples*",
+    "infrastructure*",
+    "scripts*",
+    "services*",
+]

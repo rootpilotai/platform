@@ -156,12 +156,53 @@ scripts/
 
 ---
 
+# Development Setup
+
+RootPilot targets Python 3.13.
+
+The expected local version is defined in:
+
+```text
+.python-version
+```
+
+Project dependencies, development dependencies, and pytest discovery are defined
+in:
+
+```text
+pyproject.toml
+```
+
+Create a local virtual environment from the repository root:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+Run tests:
+
+```powershell
+python -m pytest
+```
+
+Run only the shared configuration tests:
+
+```powershell
+python -m pytest shared\config\tests
+```
+
+---
+
 # Documentation
 
 ## Core Documents
 
 * `docs/vision.md`
 * `docs/architecture.md`
+* `docs/configuration.md`
 * `docs/roadmap.md`
 * `docs/project-context.md`
 

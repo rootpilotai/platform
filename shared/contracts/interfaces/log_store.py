@@ -1,0 +1,38 @@
+"""Log store abstraction for provider-agnostic async telemetry storage."""
+
+from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class LogEntry(BaseModel):
+    timestamp: datetime = Field(description="When the log was written (UTC).")
+    service: str = Field(description="Logical service name that emitted the log.")
+    level: str = Field(description="Log severity level (e.g. INFO, ERROR).")
+    message: str = Field(description="Human-readable log message.")
+    trace_id: str | None = Field(default=None, description="OpenTelemetry trace ID.")
+    span_id: str | None = Field(default=None, description="OpenTelemetry span ID.")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary structured context.")
+
+
+class LogFilter(BaseModel):
+    service: str | None = Field(default=None, description="Filter by service name.")
+    level: str | None = Field(default=None, description="Filter by severity level.")
+    trace_id: str | None = Field(default=None, description="Filter by trace ID.")
+    start_time: datetime | None = Field(default=None, description="Earliest log timestamp (inclusive).")
+    end_time: datetime | None = Field(default=None, description="Latest log timestamp (inclusive).")
+    limit: int = Field(default=100, ge=1, le=1000, description="Maximum results to return.")
+
+
+class LogStore(ABC):
+    @abstractmethod
+    async def write(self, entry: LogEntry) -> None: ...
+
+    @abstractmethod
+    async def query(self, filter: LogFilter) -> AsyncIterator[LogEntry]: ...
+
+    @abstractmethod
+    async def health(self) -> bool: ...

@@ -1,0 +1,54 @@
+[
+  {
+    "type": "telemetry",
+    "version": "1.0",
+    "data": {
+      "model_version": "1.0",
+      "metric": "cpu.usage",
+      "value": 87.5,
+      "unit": "%",
+      "tags": {
+        "host": "node-1",
+        "region": "us-east"
+      },
+      "source": "ingestion-service",
+      "timestamp": "2026-06-11T16:18:06.472649Z"
+    }
+  },
+  {
+    "type": "incident",
+    "version": "1.0",
+    "data": {
+      "model_version": "1.0",
+      "incident_id": "INC-001",
+      "severity": "critical",
+      "service": "api-gateway",
+      "title": "Gateway timeout spike above threshold",
+      "description": "p99 latency exceeded 5s for 3 consecutive minutes.",
+      "source_event_ids": [
+        "e5b84f2fbc1b47a0bba8da4811bc50ec"
+      ],
+      "detected_at": "2026-06-11T16:18:06.473315Z"
+    }
+  },
+  {
+    "type": "investigation",
+    "version": "1.0",
+    "data": {
+      "model_version": "1.0",
+      "investigation_id": "INV-001",
+      "incident_id": "INC-001",
+      "context": {
+        "logs": [
+          "log-1",
+          "log-2"
+        ],
+        "traces": [
+          "trace-abc"
+        ]
+      },
+      "depth": "deep",
+      "requested_at": "2026-06-11T16:18:06.473406Z"
+    }
+  }
+]

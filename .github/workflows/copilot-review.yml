@@ -15,4 +15,4 @@ jobs:
       - name: Request Copilot code review
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr review ${{ github.event.pull_request.number }} --request-copilot-review
+        run: gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/requested_reviewers \-f reviewers='["copilot"]'

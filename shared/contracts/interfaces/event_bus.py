@@ -21,3 +21,6 @@ class EventBus(ABC):
 
     @abstractmethod
     async def close(self) -> None: ...
+
+    @abstractmethod
+    async def health(self) -> bool: ...

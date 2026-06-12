@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config import CorrelationServiceSettings
-from app.routers import health, timeline
+from app.routers import correlation, health, timeline
 from shared.config import load_settings
+from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.timeline.services import TimelineReconstructor
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.reconstructor = TimelineReconstructor(
         window_duration_seconds=settings.timeline_window_duration,
     )
+    app.state.engine = CorrelationEngine()
 
     logger.info("Service started", extra={"service": settings.service_name})
 
@@ -41,6 +43,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health.router)
     app.include_router(timeline.router)
+    app.include_router(correlation.router)
     return app
 
 

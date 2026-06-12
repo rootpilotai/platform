@@ -1,0 +1,47 @@
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from app.config import CorrelationServiceSettings
+from app.routers import health, timeline
+from shared.config import load_settings
+from shared.domain.timeline.services import TimelineReconstructor
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings: CorrelationServiceSettings = load_settings(CorrelationServiceSettings)
+    app.state.settings = settings
+
+    logging.basicConfig(
+        level=getattr(logging, settings.log_level.upper(), logging.INFO),
+        format="%(levelname)s\t%(name)s\t%(message)s",
+    )
+
+    app.state.reconstructor = TimelineReconstructor(
+        window_duration_seconds=settings.timeline_window_duration,
+    )
+
+    logger.info("Service started", extra={"service": settings.service_name})
+
+    yield
+
+    logger.info("Service stopped", extra={"service": settings.service_name})
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="correlation-service",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    app.include_router(health.router)
+    app.include_router(timeline.router)
+    return app
+
+
+app = create_app()

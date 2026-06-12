@@ -30,7 +30,6 @@ asyncio_mode = "auto"
 testpaths = [
     "shared",
     "infrastructure",
-    "services",
 ]
 python_files = [
     "test_*.py",

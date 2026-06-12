@@ -2,12 +2,12 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
-COPY shared ./shared
-COPY services/correlation-service/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir --no-deps .
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY services/correlation-service/app ./app
+COPY app ./app
+COPY infrastructure ./infrastructure
 
-CMD ["python", "-c", "print('correlation-service scaffold ready')"]
+EXPOSE 8001
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]

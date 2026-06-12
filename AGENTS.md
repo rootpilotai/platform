@@ -219,6 +219,23 @@ API aggregation and external access.
 
 ---
 
+# Testing
+
+Service tests must be run from each service's directory (not from the project root) due to sys.path isolation:
+
+```text
+cd services/ingestion-service && python -m pytest
+cd services/correlation-service && python -m pytest
+```
+
+Shared and infrastructure tests can run from the project root:
+
+```text
+python -m pytest shared/ infrastructure/
+```
+
+---
+
 # Development Guidelines
 
 ## Prefer:

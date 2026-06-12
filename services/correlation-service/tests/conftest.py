@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import CorrelationServiceSettings
 from app.main import create_app
+from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.timeline.services import TimelineReconstructor
 
 
@@ -33,6 +34,7 @@ def app(
     application.state.reconstructor = TimelineReconstructor(
         window_duration_seconds=test_settings.timeline_window_duration,
     )
+    application.state.engine = CorrelationEngine()
     return application
 
 

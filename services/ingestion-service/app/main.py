@@ -24,7 +24,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     config = RabbitMQConfig(url=settings.event_bus_url)
     event_bus = RabbitMQEventBus(config=config)
-    await event_bus.start()
+    try:
+        await event_bus.start()
+    except Exception:
+        logger.warning("Event bus unavailable at startup — will retry in background")
     app.state.event_bus = event_bus
 
     logger.info("Service started", extra={"service": settings.service_name})

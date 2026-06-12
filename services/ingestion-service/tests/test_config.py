@@ -29,11 +29,11 @@ class TestIngestionServiceSettings:
         assert settings.debug is False
 
     def test_can_be_loaded_via_factory(self) -> None:
-    settings = load_settings(
-        IngestionServiceSettings,
-        host="127.0.0.1",
-        port=9000,
-    )
+        settings = load_settings(
+            IngestionServiceSettings,
+            host="127.0.0.1",
+            port=9000,
+        )
         assert settings.host == "127.0.0.1"
         assert settings.port == 9000
         assert settings.service_name == "ingestion-service"

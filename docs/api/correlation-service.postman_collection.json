@@ -1,0 +1,195 @@
+{
+  "info": {
+    "name": "RootPilot - correlation-service",
+    "description": "Incident timeline reconstruction API.\n\nBase URL: {{base_url}}",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "rootpilot"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has required fields\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"status\", \"service\", \"environment\");",
+                  "    pm.expect(json.service).to.eql(\"correlation-service\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Timeline",
+      "item": [
+        {
+          "name": "Reconstruct with single failure event",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Timeline has correct structure\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.incident_id).to.eql(\"inc-1\");",
+                  "    pm.expect(json.service).to.eql(\"api-gateway\");",
+                  "    pm.expect(json.event_count).to.eql(1);",
+                  "    pm.expect(json.window_count).to.eql(1);",
+                  "    pm.expect(json.windows[0].events[0].category).to.eql(\"failure\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"incident_id\": \"inc-1\",\n  \"service\": \"api-gateway\",\n  \"events\": [\n    {\n      \"event_id\": \"evt-001\",\n      \"category\": \"failure\",\n      \"source\": \"telemetry\",\n      \"timestamp\": \"2026-06-12T10:00:00+00:00\",\n      \"service_name\": \"api-gateway\",\n      \"title\": \"Error rate spike detected\",\n      \"description\": \"HTTP 500 rate exceeded 5% threshold\",\n      \"trace_id\": null,\n      \"request_id\": null,\n      \"severity\": null,\n      \"tags\": {}\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/timeline/reconstruct",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "timeline", "reconstruct"]
+            }
+          }
+        },
+        {
+          "name": "Reconstruct with multi-window incident",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Events split across windows\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.event_count).to.eql(5);",
+                  "    pm.expect(json.window_count).to.eql(3);",
+                  "    pm.expect(json.windows[0].events[0].category).to.eql(\"failure\");",
+                  "    pm.expect(json.windows[2].events[0].category).to.eql(\"recovery\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"incident_id\": \"inc-2\",\n  \"service\": \"payment-service\",\n  \"events\": [\n    {\n      \"event_id\": \"evt-001\",\n      \"category\": \"failure\",\n      \"source\": \"telemetry\",\n      \"timestamp\": \"2026-06-12T10:00:00+00:00\",\n      \"service_name\": \"payment-service\",\n      \"title\": \"Timeout spike\",\n      \"description\": \"Payment gateway timeouts at 15%\",\n      \"trace_id\": null,\n      \"request_id\": null,\n      \"severity\": null,\n      \"tags\": {}\n    },\n    {\n      \"event_id\": \"evt-002\",\n      \"category\": \"failure\",\n      \"source\": \"telemetry\",\n      \"timestamp\": \"2026-06-12T10:01:00+00:00\",\n      \"service_name\": \"payment-service\",\n      \"title\": \"Error rate increasing\",\n      \"description\": \"HTTP 502 errors at 8%\",\n      \"trace_id\": \"trace-a\",\n      \"request_id\": \"req-1\",\n      \"severity\": null,\n      \"tags\": {}\n    },\n    {\n      \"event_id\": \"evt-003\",\n      \"category\": \"retry\",\n      \"source\": \"telemetry\",\n      \"timestamp\": \"2026-06-12T10:04:00+00:00\",\n      \"service_name\": \"payment-service\",\n      \"title\": \"Retry storm\",\n      \"description\": \"Automatic retries at 50/s\",\n      \"trace_id\": \"trace-a\",\n      \"request_id\": \"req-1\",\n      \"severity\": null,\n      \"tags\": {}\n    },\n    {\n      \"event_id\": \"evt-004\",\n      \"category\": \"outage\",\n      \"source\": \"incident\",\n      \"timestamp\": \"2026-06-12T10:07:00+00:00\",\n      \"service_name\": \"payment-service\",\n      \"title\": \"Service degraded\",\n      \"description\": \"Partial outage declared\",\n      \"trace_id\": null,\n      \"request_id\": null,\n      \"severity\": \"critical\",\n      \"tags\": {}\n    },\n    {\n      \"event_id\": \"evt-005\",\n      \"category\": \"recovery\",\n      \"source\": \"telemetry\",\n      \"timestamp\": \"2026-06-12T10:12:00+00:00\",\n      \"service_name\": \"payment-service\",\n      \"title\": \"Error rate normalised\",\n      \"description\": \"All metrics within threshold\",\n      \"trace_id\": null,\n      \"request_id\": null,\n      \"severity\": null,\n      \"tags\": {}\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/timeline/reconstruct",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "timeline", "reconstruct"]
+            }
+          }
+        },
+        {
+          "name": "Reconstruct with custom window size",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Custom window duration applied\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.window_duration_seconds).to.eql(120);",
+                  "    pm.expect(json.event_count).to.eql(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"incident_id\": \"inc-3\",\n  \"service\": \"user-service\",\n  \"window_duration_seconds\": 120,\n  \"events\": [\n    {\n      \"event_id\": \"evt-001\",\n      \"category\": \"config_change\",\n      \"source\": \"deployment\",\n      \"timestamp\": \"2026-06-12T14:00:00+00:00\",\n      \"service_name\": \"user-service\",\n      \"title\": \"Auth module deployed\",\n      \"description\": \"v2.1.0 rolled out\",\n      \"trace_id\": null,\n      \"request_id\": null,\n      \"severity\": null,\n      \"tags\": {}\n    },\n    {\n      \"event_id\": \"evt-002\",\n      \"category\": \"health_check\",\n      \"source\": \"telemetry\",\n      \"timestamp\": \"2026-06-12T14:01:00+00:00\",\n      \"service_name\": \"user-service\",\n      \"title\": \"Health check passed\",\n      \"description\": \"All probes OK\",\n      \"trace_id\": null,\n      \"request_id\": null,\n      \"severity\": null,\n      \"tags\": {}\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/timeline/reconstruct",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "timeline", "reconstruct"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error cases",
+      "item": [
+        {
+          "name": "Empty body (422)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Body has detail\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property(\"detail\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/timeline/reconstruct",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "timeline", "reconstruct"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

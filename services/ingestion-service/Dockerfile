@@ -10,4 +10,4 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY services/ingestion-service/app ./app
 
-CMD ["python", "-c", "print('ingestion-service scaffold ready')"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

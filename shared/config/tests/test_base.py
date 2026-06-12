@@ -26,7 +26,7 @@ class ExampleServiceSettings(BaseAppSettings):
 
 
 def test_base_settings_defaults_are_typed() -> None:
-    settings = BaseAppSettings(_env_file=None)
+    settings = BaseAppSettings()
 
     assert settings.service_name == "rootpilot-service"
     assert settings.environment == "local"
@@ -38,7 +38,6 @@ def test_base_settings_defaults_are_typed() -> None:
 def test_load_settings_supports_service_specific_subclasses() -> None:
     settings = load_settings(
         ExampleServiceSettings,
-        _env_file=None,
         event_bus_url="memory://events",
     )
 

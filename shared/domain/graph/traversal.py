@@ -1,13 +1,13 @@
 from collections import deque
 
-from shared.domain.graph.models import DependencyEdge, DependencyGraph
+from shared.domain.graph.store import GraphStore
 
 
 class GraphTraversal:
-    def __init__(self, graph: DependencyGraph) -> None:
-        self._graph = graph
+    def __init__(self, store: GraphStore) -> None:
+        self._store = store
 
-    def get_upstream(self, service_name: str) -> list[str]:
+    async def get_upstream(self, service_name: str) -> list[str]:
         visited: set[str] = set()
         queue: deque[str] = deque()
         queue.append(service_name)
@@ -17,14 +17,14 @@ class GraphTraversal:
             if current in visited:
                 continue
             visited.add(current)
-            for edge in self._graph.get_incoming(current):
+            for edge in await self._store.get_incoming(current):
                 if edge.source not in visited:
                     queue.append(edge.source)
 
         visited.discard(service_name)
         return list(visited)
 
-    def get_downstream(self, service_name: str) -> list[str]:
+    async def get_downstream(self, service_name: str) -> list[str]:
         visited: set[str] = set()
         queue: deque[str] = deque()
         queue.append(service_name)
@@ -34,19 +34,19 @@ class GraphTraversal:
             if current in visited:
                 continue
             visited.add(current)
-            for edge in self._graph.get_outgoing(current):
+            for edge in await self._store.get_outgoing(current):
                 if edge.target not in visited:
                     queue.append(edge.target)
 
         visited.discard(service_name)
         return list(visited)
 
-    def find_paths(self, source: str, target: str, max_depth: int = 10) -> list[list[str]]:
+    async def find_paths(self, source: str, target: str, max_depth: int = 10) -> list[list[str]]:
         paths: list[list[str]] = []
-        self._dfs(source, target, [source], paths, max_depth)
+        await self._dfs(source, target, [source], paths, max_depth)
         return paths
 
-    def _dfs(
+    async def _dfs(
         self,
         current: str,
         target: str,
@@ -59,25 +59,25 @@ class GraphTraversal:
         if current == target:
             paths.append(path[:])
             return
-        for edge in self._graph.get_outgoing(current):
+        for edge in await self._store.get_outgoing(current):
             if edge.target not in path:
                 path.append(edge.target)
-                self._dfs(edge.target, target, path, paths, max_depth)
+                await self._dfs(edge.target, target, path, paths, max_depth)
                 path.pop()
 
-    def get_leaf_nodes(self) -> list[str]:
-        all_targets: set[str] = set()
-        for edges in self._graph.edges.values():
-            for edge in edges:
-                all_targets.add(edge.target)
-        return [name for name in self._graph.nodes if name not in self._graph.edges]
+    async def get_leaf_nodes(self) -> list[str]:
+        all_nodes = await self._store.get_all_node_names()
+        leaves: list[str] = []
+        for name in all_nodes:
+            outgoing = await self._store.get_outgoing(name)
+            if not outgoing:
+                leaves.append(name)
+        return leaves
 
-    def get_root_nodes(self) -> list[str]:
-        all_targets: set[str] = set()
-        for edges in self._graph.edges.values():
-            for edge in edges:
-                all_targets.add(edge.target)
-        return [name for name in self._graph.nodes if name not in all_targets]
+    async def get_root_nodes(self) -> list[str]:
+        all_targets = await self._store.get_all_edge_targets()
+        all_nodes = await self._store.get_all_node_names()
+        return [name for name in all_nodes if name not in all_targets]
 
-    def get_impact_chain(self, service_name: str) -> list[str]:
-        return self.get_downstream(service_name)
+    async def get_impact_chain(self, service_name: str) -> list[str]:
+        return await self.get_downstream(service_name)

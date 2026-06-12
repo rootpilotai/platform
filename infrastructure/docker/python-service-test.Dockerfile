@@ -7,6 +7,7 @@ ARG SERVICE_PATH
 
 COPY pyproject.toml README.md ./
 COPY shared ./shared
+COPY infrastructure ./infrastructure
 COPY ${SERVICE_PATH}/requirements.txt ./service/requirements.txt
 COPY ${SERVICE_PATH}/app ./service/app
 COPY ${SERVICE_PATH}/tests ./service/tests

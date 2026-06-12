@@ -1,8 +1,12 @@
+import sys
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import CorrelationServiceSettings
 from app.main import create_app

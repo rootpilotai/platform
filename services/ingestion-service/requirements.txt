@@ -2,3 +2,4 @@ fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings
+aio-pika>=9.5,<10

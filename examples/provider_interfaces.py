@@ -25,6 +25,9 @@ class PrintBus(EventBus):
     async def close(self) -> None:
         pass
 
+    async def health(self) -> bool:
+        return True
+
 
 # ---------------------------------------------------------------------------
 # Example LogStore implementation

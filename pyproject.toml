@@ -15,6 +15,7 @@ dependencies = [
     "pydantic-settings",
     "langgraph",
     "openai",
+    "aio-pika>=9.5,<10",
 ]
 
 [project.optional-dependencies]
@@ -23,8 +24,10 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 testpaths = [
     "shared",
+    "infrastructure",
     "services",
 ]
 python_files = [
@@ -41,12 +44,12 @@ python_functions = [
 [tool.setuptools.packages.find]
 include = [
     "shared*",
+    "infrastructure*",
 ]
 exclude = [
     "datasets*",
     "docs*",
     "examples*",
-    "infrastructure*",
     "scripts*",
     "services*",
 ]

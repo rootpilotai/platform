@@ -2,7 +2,7 @@
 
 from shared.contracts.interfaces.event_bus import EventBus
 from shared.contracts.interfaces.llm_provider import LLMProvider, LLMMessage, LLMResponse
-from shared.contracts.interfaces.log_store import LogEntry, LogFilter, LogStore
+from shared.contracts.interfaces.log_store import LogEntry, LogFilter, LogStore, SortOrder
 
 __all__ = [
     "EventBus",
@@ -12,4 +12,5 @@ __all__ = [
     "LogEntry",
     "LogFilter",
     "LogStore",
+    "SortOrder",
 ]

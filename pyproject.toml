@@ -16,6 +16,7 @@ dependencies = [
     "langgraph",
     "openai",
     "aio-pika>=9.5,<10",
+    "elasticsearch>=8.15,<9",
 ]
 
 [project.optional-dependencies]

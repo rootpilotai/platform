@@ -3,3 +3,4 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 aio-pika>=9.5,<10
+elasticsearch>=8.15,<9

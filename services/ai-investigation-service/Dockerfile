@@ -11,4 +11,6 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY services/ai-investigation-service/app ./app
 COPY services/ai-investigation-service/workflows ./workflows
 
-CMD ["python", "-c", "print('ai-investigation-service scaffold ready')"]
+EXPOSE 8002
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]

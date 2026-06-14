@@ -10,8 +10,8 @@ from httpx import ASGITransport, AsyncClient
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import IngestionServiceSettings
-from app.dependencies import get_event_bus, get_settings
 from app.main import create_app
+
 from shared.contracts import EventBus
 
 
@@ -48,7 +48,7 @@ def app(
 
 
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+async def client(app: FastAPI) -> AsyncGenerator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

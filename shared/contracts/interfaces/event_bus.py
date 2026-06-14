@@ -1,8 +1,8 @@
 """Event bus abstraction for provider-agnostic async messaging."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Coroutine
-from typing import Any, Callable
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from shared.contracts.events.base import Event
 

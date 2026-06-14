@@ -1,5 +1,3 @@
-import pytest
-
 from shared.domain.correlation.models import CorrelationContext
 from shared.domain.correlation.strategies import (
     DependencyStrategy,
@@ -25,7 +23,7 @@ def _event(
 ) -> TimelineEvent:
     import datetime
 
-    base = datetime.datetime(2026, 6, 12, 10, 0, 0, tzinfo=datetime.timezone.utc)
+    base = datetime.datetime(2026, 6, 12, 10, 0, 0, tzinfo=datetime.UTC)
     return TimelineEvent(
         event_id=event_id,
         category=TimelineEventCategory(category),
@@ -54,7 +52,9 @@ class TestTimeWindowStrategy:
         assert len(matches) == 0
 
     async def test_score_decays_with_distance(self) -> None:
-        ctx = CorrelationContext(events=[_event("a", ts_offset=0), _event("b", ts_offset=30), _event("c", ts_offset=55)])
+        ctx = CorrelationContext(
+            events=[_event("a", ts_offset=0), _event("b", ts_offset=30), _event("c", ts_offset=55)]
+        )
         s = TimeWindowStrategy(window_seconds=60)
         matches = await s.correlate(ctx)
         scores = {(m.event_id_a, m.event_id_b): m.score for m in matches}
@@ -127,9 +127,7 @@ class TestDependencyStrategy:
     async def test_matches_dependent_services(self) -> None:
         store = InMemoryGraphStore()
         await store.add_edge(DependencyEdge(source="api", target="db"))
-        ctx = CorrelationContext(
-            events=[_event("a", service="api"), _event("b", service="db")]
-        )
+        ctx = CorrelationContext(events=[_event("a", service="api"), _event("b", service="db")])
         s = DependencyStrategy(store=store)
         matches = await s.correlate(ctx)
         assert len(matches) == 1
@@ -138,9 +136,7 @@ class TestDependencyStrategy:
     async def test_no_match_independent_services(self) -> None:
         store = InMemoryGraphStore()
         await store.add_edge(DependencyEdge(source="api", target="db"))
-        ctx = CorrelationContext(
-            events=[_event("a", service="api"), _event("c", service="worker")]
-        )
+        ctx = CorrelationContext(events=[_event("a", service="api"), _event("c", service="worker")])
         s = DependencyStrategy(store=store)
         matches = await s.correlate(ctx)
         assert len(matches) == 0
@@ -148,9 +144,7 @@ class TestDependencyStrategy:
     async def test_uses_edge_weight(self) -> None:
         store = InMemoryGraphStore()
         await store.add_edge(DependencyEdge(source="api", target="db", weight=0.5))
-        ctx = CorrelationContext(
-            events=[_event("a", service="api"), _event("b", service="db")]
-        )
+        ctx = CorrelationContext(events=[_event("a", service="api"), _event("b", service="db")])
         s = DependencyStrategy(store=store)
         matches = await s.correlate(ctx)
         assert matches[0].score == 0.5

@@ -39,14 +39,12 @@ class TestRabbitMQEventBus:
     async def test_start_connects_and_declares_exchange(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        mock_channel = AsyncMock()
+        mock_channel = AsyncMock(is_closed=False)
         mock_exchange = MagicMock()
         mock_channel.declare_exchange = AsyncMock(return_value=mock_exchange)
-        mock_channel.is_closed = False
 
-        mock_connection = AsyncMock()
+        mock_connection = AsyncMock(is_closed=False)
         mock_connection.channel = AsyncMock(return_value=mock_channel)
-        mock_connection.is_closed = False
 
         with patch("aio_pika.connect_robust", AsyncMock(return_value=mock_connection)):
             await bus.start()
@@ -65,13 +63,11 @@ class TestRabbitMQEventBus:
     async def test_start_is_idempotent(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        mock_channel = AsyncMock()
+        mock_channel = AsyncMock(is_closed=False)
         mock_channel.declare_exchange = AsyncMock(return_value=MagicMock())
-        mock_channel.is_closed = False
 
-        mock_connection = AsyncMock()
+        mock_connection = AsyncMock(is_closed=False)
         mock_connection.channel = AsyncMock(return_value=mock_channel)
-        mock_connection.is_closed = False
 
         with patch("aio_pika.connect_robust", AsyncMock(return_value=mock_connection)):
             await bus.start()
@@ -81,26 +77,22 @@ class TestRabbitMQEventBus:
     async def test_start_reconnects_if_connection_died(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        mock_channel = AsyncMock()
+        mock_channel = AsyncMock(is_closed=False)
         mock_channel.declare_exchange = AsyncMock(return_value=MagicMock())
-        mock_channel.is_closed = False
 
-        mock_connection = AsyncMock()
+        mock_connection = AsyncMock(is_closed=False)
         mock_connection.channel = AsyncMock(return_value=mock_channel)
-        mock_connection.is_closed = False
 
         with patch("aio_pika.connect_robust", AsyncMock(return_value=mock_connection)):
             await bus.start()
 
-        bus._connection.is_closed = True
+        mock_connection.is_closed = True
 
-        new_channel = AsyncMock()
+        new_channel = AsyncMock(is_closed=False)
         new_channel.declare_exchange = AsyncMock(return_value=MagicMock())
-        new_channel.is_closed = False
 
-        new_connection = AsyncMock()
+        new_connection = AsyncMock(is_closed=False)
         new_connection.channel = AsyncMock(return_value=new_channel)
-        new_connection.is_closed = False
 
         with patch("aio_pika.connect_robust", AsyncMock(return_value=new_connection)):
             await bus.start()
@@ -110,12 +102,8 @@ class TestRabbitMQEventBus:
     async def test_close_cleans_up_connection(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        mock_channel = AsyncMock()
-        mock_channel.is_closed = False
-
-        mock_connection = AsyncMock()
-        mock_connection.is_closed = False
-
+        mock_channel = AsyncMock(is_closed=False)
+        mock_connection = AsyncMock(is_closed=False)
         bus._channel = mock_channel
         bus._connection = mock_connection
         bus._exchange = MagicMock()
@@ -146,17 +134,12 @@ class TestRabbitMQEventBus:
     async def test_close_closes_subscriber_channels(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        sub_channel = AsyncMock()
-        sub_channel.is_closed = False
-
         sub_info = AsyncMock()
         sub_info.close = AsyncMock()
 
         bus._subscribers = {"test.topic": sub_info}
-        bus._channel = AsyncMock()
-        bus._channel.is_closed = False
-        bus._connection = AsyncMock()
-        bus._connection.is_closed = False
+        bus._channel = AsyncMock(is_closed=False)
+        bus._connection = AsyncMock(is_closed=False)
 
         await bus.close()
 
@@ -165,11 +148,9 @@ class TestRabbitMQEventBus:
     async def test_publish_serializes_event_and_publishes(self, config: RabbitMQConfig, event: Event) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        mock_exchange = AsyncMock()
-        mock_exchange.is_closed = False
+        mock_exchange = AsyncMock(is_closed=False)
         bus._exchange = mock_exchange
-        bus._connection = AsyncMock()
-        bus._connection.is_closed = False
+        bus._connection = AsyncMock(is_closed=False)
 
         await bus.publish(event)
 
@@ -187,11 +168,9 @@ class TestRabbitMQEventBus:
     async def test_publish_with_custom_topic(self, config: RabbitMQConfig, event: Event) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        mock_exchange = AsyncMock()
-        mock_exchange.is_closed = False
+        mock_exchange = AsyncMock(is_closed=False)
         bus._exchange = mock_exchange
-        bus._connection = AsyncMock()
-        bus._connection.is_closed = False
+        bus._connection = AsyncMock(is_closed=False)
 
         await bus.publish(event, topic="custom.route")
 
@@ -215,8 +194,7 @@ class TestRabbitMQEventBus:
     async def test_subscribe_declares_queue_and_binds(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        mock_channel = AsyncMock()
-        mock_channel.is_closed = False
+        mock_channel = AsyncMock(is_closed=False)
         mock_queue = AsyncMock()
         mock_queue.name = "test-queue"
         mock_queue.consume = AsyncMock(return_value="consumer-tag")
@@ -225,9 +203,8 @@ class TestRabbitMQEventBus:
 
         mock_exchange = MagicMock()
 
-        bus._connection = AsyncMock()
+        bus._connection = AsyncMock(is_closed=False)
         bus._connection.channel = AsyncMock(return_value=mock_channel)
-        bus._connection.is_closed = False
 
         handler: EventHandler = AsyncMock()
 
@@ -256,8 +233,7 @@ class TestRabbitMQEventBus:
     async def test_health_returns_true_when_connected(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        bus._connection = MagicMock()
-        bus._connection.is_closed = False
+        bus._connection = MagicMock(is_closed=False)
         bus._closed = False
 
         assert await bus.health() is True
@@ -274,8 +250,7 @@ class TestRabbitMQEventBus:
 
     async def test_health_returns_false_when_disconnected(self, config: RabbitMQConfig) -> None:
         bus = RabbitMQEventBus(config=config)
-        bus._connection = MagicMock()
-        bus._connection.is_closed = True
+        bus._connection = MagicMock(is_closed=True)
         bus._closed = False
 
         assert await bus.health() is False
@@ -283,7 +258,7 @@ class TestRabbitMQEventBus:
     async def test_make_handler_calls_handler_on_message(self, config: RabbitMQConfig, event: Event) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        handler: EventHandler = AsyncMock()
+        handler = AsyncMock()
         wrapped = bus._make_handler(handler)
 
         mock_message = AsyncMock()
@@ -295,6 +270,7 @@ class TestRabbitMQEventBus:
         await wrapped(mock_message)
 
         handler.assert_awaited_once()
+        assert handler.await_args is not None
         called_event = handler.await_args.args[0]
         assert isinstance(called_event, Event)
         assert called_event.id == event.id
@@ -304,7 +280,7 @@ class TestRabbitMQEventBus:
     async def test_make_handler_does_not_raise_on_failure(self, config: RabbitMQConfig, event: Event) -> None:
         bus = RabbitMQEventBus(config=config)
 
-        handler: EventHandler = AsyncMock(side_effect=ValueError("handler error"))
+        handler = AsyncMock(side_effect=ValueError("handler error"))
         wrapped = bus._make_handler(handler)
 
         mock_message = AsyncMock()

@@ -28,6 +28,9 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "httpx",
+    "ruff",
+    "mypy",
+    "pre-commit",
 ]
 
 [tool.pytest.ini_options]
@@ -45,6 +48,48 @@ python_classes = [
 ]
 python_functions = [
     "test_*",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+exclude = [".venv", "build", "dist", "datasets", "docs", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "ARG", "RUF"]
+ignore = ["B905"]
+extend-ignore = [
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["ARG"]
+"services/*" = ["ARG", "B008"]
+"examples/*" = ["ARG", "RUF003"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_return_any = false
+exclude = [
+    ".venv/",
+    "build/",
+    "dist/",
+    "datasets/",
+    "examples/",
+    "scripts/",
+    "services/",
 ]
 
 [tool.setuptools.packages.find]

@@ -19,8 +19,8 @@ from shared.domain.correlation.strategies import (
 )
 
 __all__ = [
-    "CorrelationEngine",
     "CorrelationContext",
+    "CorrelationEngine",
     "CorrelationGroup",
     "CorrelationMatch",
     "CorrelationPipeline",
@@ -34,4 +34,3 @@ __all__ = [
     "TimeWindowStrategy",
     "TraceIdStrategy",
 ]
-

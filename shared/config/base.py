@@ -1,15 +1,13 @@
 """Base settings used by RootPilot services."""
 
 from pathlib import Path
-from typing import Literal, TypeVar
+from typing import Any, Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["local", "development", "staging", "production", "test"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-
-SettingsT = TypeVar("SettingsT", bound="BaseAppSettings")
 
 
 class BaseAppSettings(BaseSettings):
@@ -55,11 +53,11 @@ class BaseAppSettings(BaseSettings):
         return self.otel_service_name or self.service_name
 
 
-def load_settings(
-    settings_cls: type[SettingsT] = BaseAppSettings,
+def load_settings[SettingsT: BaseAppSettings](
+    settings_cls: type[SettingsT] = BaseAppSettings,  # type: ignore[assignment]
     *,
     env_file: str | Path | None = None,
-    **overrides: object,
+    **overrides: Any,
 ) -> SettingsT:
     """Create a settings instance without blocking async request paths.
 

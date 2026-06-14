@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.schemas import IngestRequest
 from shared.contracts import Event, EventBus, ServiceName, TelemetryEvent
@@ -36,9 +36,9 @@ class IngestionService:
 
     def _parse_timestamp(self, raw: str | None) -> datetime:
         if raw is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         try:
             return datetime.fromisoformat(raw)
         except ValueError:
             logger.warning("Invalid timestamp format, falling back to now", extra={"raw": raw})
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)

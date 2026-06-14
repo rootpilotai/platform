@@ -8,10 +8,10 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.propagators.composite import CompositeHTTPPropagator
 from opentelemetry.propagators.textmap import Setter, TextMapPropagator
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import Span as OTelSDKSpan
 from opentelemetry.sdk.trace import TracerProvider as OTelSDKTracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import NonRecordingSpan, SpanContext as OTelSpanContext
+from opentelemetry.trace import NonRecordingSpan
+from opentelemetry.trace import SpanContext as OTelSpanContext
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from shared.observability.tracing import Span, SpanContext, SpanKind, SpanStatus, Tracer, TracerProvider
@@ -108,9 +108,7 @@ class OTelTracer(Tracer):
         if context is not None:
             parent_octx = _to_span_context(context)
             if parent_octx is not None:
-                otel_ctx = otel_trace.set_span_in_context(
-                    NonRecordingSpan(parent_octx)
-                )
+                otel_ctx = otel_trace.set_span_in_context(NonRecordingSpan(parent_octx))
 
         otel_span = self._tracer.start_span(
             name=name,
@@ -137,9 +135,11 @@ class OTelTracerProvider(TracerProvider):
             sdk_provider.add_span_processor(span_processor)
 
         self._provider = sdk_provider
-        self._propagator: TextMapPropagator = CompositeHTTPPropagator([
-            TraceContextTextMapPropagator(),
-        ])
+        self._propagator: TextMapPropagator = CompositeHTTPPropagator(
+            [
+                TraceContextTextMapPropagator(),
+            ]
+        )
 
         otel_trace.set_tracer_provider(sdk_provider)
 

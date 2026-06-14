@@ -1,8 +1,4 @@
-from datetime import datetime, timezone
-
 from httpx import AsyncClient
-
-from shared.domain.timeline.enums import TimelineEventCategory, TimelineEventSource
 
 
 class TestReconstructEndpoint:

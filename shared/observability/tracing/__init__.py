@@ -4,10 +4,10 @@ from shared.observability.tracing.models import SpanContext, SpanKind, SpanStatu
 from shared.observability.tracing.provider import Span, Tracer, TracerProvider
 
 __all__ = [
+    "Span",
     "SpanContext",
     "SpanKind",
     "SpanStatus",
-    "Span",
     "Tracer",
     "TracerProvider",
 ]

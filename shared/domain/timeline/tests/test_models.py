@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from shared.contracts.events.enums import Severity
 from shared.domain.timeline.enums import TimelineEventCategory, TimelineEventSource
@@ -7,7 +7,7 @@ from shared.domain.timeline.models import IncidentTimeline, TimelineEvent, Timel
 
 class TestTimelineEvent:
     async def test_minimal_event(self) -> None:
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         event = TimelineEvent(
             event_id="evt-1",
             category=TimelineEventCategory.FAILURE,
@@ -23,7 +23,7 @@ class TestTimelineEvent:
         assert event.tags == {}
 
     async def test_event_with_all_fields(self) -> None:
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         event = TimelineEvent(
             event_id="evt-2",
             category=TimelineEventCategory.DEPLOYMENT,
@@ -43,7 +43,7 @@ class TestTimelineEvent:
         assert event.severity == Severity.INFO
 
     async def test_round_trip_json(self) -> None:
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         original = TimelineEvent(
             event_id="evt-3",
             category=TimelineEventCategory.RECOVERY,
@@ -58,20 +58,20 @@ class TestTimelineEvent:
 
 class TestTimelineWindow:
     async def test_empty_window(self) -> None:
-        start = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
-        end = datetime(2026, 6, 12, 10, 5, 0, tzinfo=timezone.utc)
+        start = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
+        end = datetime(2026, 6, 12, 10, 5, 0, tzinfo=UTC)
         window = TimelineWindow(window_start=start, window_end=end)
         assert window.event_count == 0
         assert window.duration_seconds == 300.0
 
     async def test_window_with_events(self) -> None:
-        start = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
-        end = datetime(2026, 6, 12, 10, 5, 0, tzinfo=timezone.utc)
+        start = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
+        end = datetime(2026, 6, 12, 10, 5, 0, tzinfo=UTC)
         event = TimelineEvent(
             event_id="e1",
             category=TimelineEventCategory.FAILURE,
             source=TimelineEventSource.TELEMETRY,
-            timestamp=datetime(2026, 6, 12, 10, 2, 0, tzinfo=timezone.utc),
+            timestamp=datetime(2026, 6, 12, 10, 2, 0, tzinfo=UTC),
             service_name="api",
             title="failure",
         )
@@ -91,9 +91,9 @@ class TestIncidentTimeline:
         assert timeline.end_time is None
 
     async def test_timeline_with_windows(self) -> None:
-        start = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
-        mid = datetime(2026, 6, 12, 10, 5, 0, tzinfo=timezone.utc)
-        end = datetime(2026, 6, 12, 10, 10, 0, tzinfo=timezone.utc)
+        start = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
+        mid = datetime(2026, 6, 12, 10, 5, 0, tzinfo=UTC)
+        end = datetime(2026, 6, 12, 10, 10, 0, tzinfo=UTC)
 
         w1 = TimelineWindow(
             window_start=start,
@@ -103,7 +103,7 @@ class TestIncidentTimeline:
                     event_id="e1",
                     category=TimelineEventCategory.FAILURE,
                     source=TimelineEventSource.TELEMETRY,
-                    timestamp=datetime(2026, 6, 12, 10, 2, 0, tzinfo=timezone.utc),
+                    timestamp=datetime(2026, 6, 12, 10, 2, 0, tzinfo=UTC),
                     service_name="api",
                     title="fail-1",
                 )
@@ -117,7 +117,7 @@ class TestIncidentTimeline:
                     event_id="e2",
                     category=TimelineEventCategory.RETRY,
                     source=TimelineEventSource.TELEMETRY,
-                    timestamp=datetime(2026, 6, 12, 10, 7, 0, tzinfo=timezone.utc),
+                    timestamp=datetime(2026, 6, 12, 10, 7, 0, tzinfo=UTC),
                     service_name="api",
                     title="retry-1",
                 ),
@@ -125,7 +125,7 @@ class TestIncidentTimeline:
                     event_id="e3",
                     category=TimelineEventCategory.RECOVERY,
                     source=TimelineEventSource.TELEMETRY,
-                    timestamp=datetime(2026, 6, 12, 10, 9, 0, tzinfo=timezone.utc),
+                    timestamp=datetime(2026, 6, 12, 10, 9, 0, tzinfo=UTC),
                     service_name="api",
                     title="recovered",
                 ),
@@ -149,7 +149,7 @@ class TestIncidentTimeline:
         assert [e.event_id for e in flattened] == ["e1", "e2", "e3"]
 
     async def test_json_round_trip(self) -> None:
-        ts = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
         timeline = IncidentTimeline(
             incident_id="inc-2",
             service="db",

@@ -1,7 +1,7 @@
 """Serialization and usage examples for RootPilot event contracts."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from shared.contracts import (
     Event,
@@ -10,7 +10,6 @@ from shared.contracts import (
     Severity,
     TelemetryEvent,
 )
-
 
 # ---------------------------------------------------------------------------
 # TelemetryEvent – serialize / deserialize
@@ -55,7 +54,7 @@ incident = IncidentDetectedEvent(
     title="Gateway timeout spike above threshold",
     description="p99 latency exceeded 5s for 3 consecutive minutes.",
     source_event_ids=[envelope.id],
-    detected_at=datetime.now(timezone.utc),
+    detected_at=datetime.now(UTC),
 )
 
 incident_json = incident.model_dump_json()
@@ -122,4 +121,4 @@ all_events = [
 with open("examples/_sample_events.json", "w") as f:
     json.dump(all_events, f, indent=2, default=str)
 
-print(f"Bulk export written to examples/_sample_events.json")
+print("Bulk export written to examples/_sample_events.json")

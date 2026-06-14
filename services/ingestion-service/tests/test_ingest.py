@@ -1,5 +1,3 @@
-import json
-
 from httpx import AsyncClient
 
 
@@ -65,14 +63,10 @@ class TestIngestEndpoint:
         response = await client.post("/api/v1/ingest", json=payload)
         assert response.status_code == 202
 
-    async def test_ingest_handles_concurrent_requests(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_ingest_handles_concurrent_requests(self, client: AsyncClient) -> None:
         import asyncio
 
         payload = {"metric": "cpu", "value": 50.0, "source": "test"}
-        responses = await asyncio.gather(
-            *[client.post("/api/v1/ingest", json=payload) for _ in range(5)]
-        )
+        responses = await asyncio.gather(*[client.post("/api/v1/ingest", json=payload) for _ in range(5)])
         for resp in responses:
             assert resp.status_code == 202

@@ -5,6 +5,7 @@ from shared.domain.correlation.strategies import (
     DependencyStrategy,
     ErrorSignatureStrategy,
     RequestIdStrategy,
+    SpanRelationStrategy,
     TimeWindowStrategy,
     TraceIdStrategy,
 )
@@ -26,6 +27,7 @@ class CorrelationEngine:
             built: list[CorrelationStrategy] = [
                 TimeWindowStrategy(window_seconds=default_window_seconds),
                 TraceIdStrategy(),
+                SpanRelationStrategy(),
                 RequestIdStrategy(),
                 ErrorSignatureStrategy(),
             ]

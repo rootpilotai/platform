@@ -4,8 +4,8 @@ from shared.contracts.events import (
     Event,
     IncidentDetectedEvent,
     InvestigationRequestedEvent,
-    Severity,
     ServiceName,
+    Severity,
     TelemetryEvent,
 )
 from shared.contracts.interfaces import (
@@ -29,7 +29,7 @@ __all__ = [
     "LogEntry",
     "LogFilter",
     "LogStore",
-    "Severity",
     "ServiceName",
+    "Severity",
     "TelemetryEvent",
 ]

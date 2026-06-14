@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from pydantic import Field
 import pytest
+from pydantic import Field
 
 from shared.config import BaseAppSettings, load_settings
 

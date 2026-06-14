@@ -1,4 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+import pytest
 
 from shared.contracts.events.telemetry import TelemetryEvent
 from shared.domain.timeline.enums import TimelineEventCategory, TimelineEventSource
@@ -14,7 +16,7 @@ class TestWindowGrouping:
         assert timeline.window_count == 0
 
     async def test_single_event_single_window(self) -> None:
-        ts = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
+        ts = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
         event = TimelineEvent(
             event_id="e1",
             category=TimelineEventCategory.FAILURE,
@@ -30,7 +32,7 @@ class TestWindowGrouping:
 
     async def test_events_grouped_into_separate_windows(self) -> None:
         r = TimelineReconstructor(window_duration_seconds=300)
-        base = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
 
         events = [
             TimelineEvent(
@@ -66,7 +68,7 @@ class TestWindowGrouping:
 
     async def test_events_sorted_chronologically(self) -> None:
         r = TimelineReconstructor(window_duration_seconds=300)
-        base = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
 
         events = [
             TimelineEvent(
@@ -101,7 +103,7 @@ class TestWindowGrouping:
 
     async def test_window_boundary_alignment(self) -> None:
         r = TimelineReconstructor(window_duration_seconds=60)
-        ts = datetime(2026, 6, 12, 10, 2, 30, tzinfo=timezone.utc)
+        ts = datetime(2026, 6, 12, 10, 2, 30, tzinfo=UTC)
         event = TimelineEvent(
             event_id="e1",
             category=TimelineEventCategory.FAILURE,
@@ -166,7 +168,7 @@ class TestTelemetryConversion:
 class TestFullReconstruction:
     async def test_build_timeline_from_telemetry(self) -> None:
         r = TimelineReconstructor(window_duration_seconds=300)
-        base = datetime(2026, 6, 12, 10, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 6, 12, 10, 0, 0, tzinfo=UTC)
 
         telemetry_events = [
             TelemetryEvent(metric="error.rate", value=0.3, source="api", timestamp=base),
@@ -193,15 +195,9 @@ class TestFullReconstruction:
 
 class TestWindowDurationValidation:
     async def test_rejects_zero_window_duration(self) -> None:
-        try:
+        with pytest.raises(ValueError, match="window_duration_seconds must be >= 1"):
             TimelineReconstructor(window_duration_seconds=0)
-            assert False, "Should have raised ValueError"
-        except ValueError:
-            pass
 
     async def test_rejects_negative_window_duration(self) -> None:
-        try:
+        with pytest.raises(ValueError, match="window_duration_seconds must be >= 1"):
             TimelineReconstructor(window_duration_seconds=-1)
-            assert False, "Should have raised ValueError"
-        except ValueError:
-            pass

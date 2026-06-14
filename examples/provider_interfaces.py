@@ -2,15 +2,16 @@
 
 import asyncio
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
-from shared.contracts import Event, EventBus, LLMMessage, LLMProvider, LLMResponse, LogEntry, LogFilter, LogStore
 
+from shared.contracts import Event, EventBus, LLMMessage, LLMProvider, LLMResponse, LogEntry, LogFilter, LogStore
 
 # ---------------------------------------------------------------------------
 # Example EventBus implementation
 # ---------------------------------------------------------------------------
+
 
 class PrintBus(EventBus):
     async def publish(self, event: Event, topic: str | None = None) -> None:
@@ -32,6 +33,7 @@ class PrintBus(EventBus):
 # ---------------------------------------------------------------------------
 # Example LogStore implementation
 # ---------------------------------------------------------------------------
+
 
 class MemoryLogStore(LogStore):
     def __init__(self) -> None:
@@ -55,6 +57,7 @@ class MemoryLogStore(LogStore):
 # ---------------------------------------------------------------------------
 # Example LLMProvider implementation
 # ---------------------------------------------------------------------------
+
 
 class EchoProvider(LLMProvider):
     async def generate(
@@ -82,12 +85,13 @@ class EchoProvider(LLMProvider):
 # Usage
 # ---------------------------------------------------------------------------
 
+
 async def main() -> None:
     bus = PrintBus()
     await bus.publish(Event(source="test", topic="ping", payload={"msg": "hello"}))
 
     store = MemoryLogStore()
-    await store.write(LogEntry(timestamp=datetime.now(timezone.utc), service="svc", level="INFO", message="started"))
+    await store.write(LogEntry(timestamp=datetime.now(UTC), service="svc", level="INFO", message="started"))
     async for entry in store.query(LogFilter(service="svc")):
         print(f"  Log: {entry.message}")
 

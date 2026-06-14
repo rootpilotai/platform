@@ -1,7 +1,5 @@
-import pytest
-from pydantic import Field
-
 from app.config import IngestionServiceSettings
+
 from shared.config import BaseAppSettings, load_settings
 
 

@@ -47,7 +47,6 @@ def _request_event_to_domain(ev: TimelineEventResponse) -> TimelineEvent:
 
 
 def _domain_timeline_to_response(timeline: IncidentTimeline) -> IncidentTimelineResponse:
-
     return IncidentTimelineResponse(
         incident_id=timeline.incident_id,
         service=timeline.service,

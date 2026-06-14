@@ -1,6 +1,6 @@
 """Base event type for provider-agnostic messaging."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -19,7 +19,7 @@ class Event(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict, description="Arbitrary event data.")
     id: str = Field(default_factory=_new_id, description="Unique event identifier (auto-generated hex UUID).")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the event was created (UTC).",
     )
     trace_context: SpanContext | None = Field(

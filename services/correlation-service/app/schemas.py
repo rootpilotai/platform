@@ -65,7 +65,9 @@ class CorrelateResponse(BaseModel):
     total_events: int = Field(description="Number of events processed.")
     groups: list[CorrelationGroupResponse] = Field(default_factory=list, description="Detected correlation groups.")
     ungrouped_event_ids: list[str] = Field(default_factory=list, description="Events that did not join any group.")
-    strategy_counts: dict[str, int] = Field(default_factory=dict, description="Number of matches produced per strategy.")
+    strategy_counts: dict[str, int] = Field(
+        default_factory=dict, description="Number of matches produced per strategy."
+    )
 
 
 class CorrelateRequest(BaseModel):

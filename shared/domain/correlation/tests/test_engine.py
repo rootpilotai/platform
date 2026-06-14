@@ -15,7 +15,7 @@ def _event(
 ) -> TimelineEvent:
     import datetime
 
-    base = datetime.datetime(2026, 6, 12, 10, 0, 0, tzinfo=datetime.timezone.utc)
+    base = datetime.datetime(2026, 6, 12, 10, 0, 0, tzinfo=datetime.UTC)
     return TimelineEvent(
         event_id=event_id,
         category=TimelineEventCategory(category),
@@ -43,19 +43,23 @@ class TestFullFlow:
 
     async def test_two_correlated_events(self) -> None:
         engine = CorrelationEngine()
-        result = await engine.correlate([
-            _event("a", trace_id="t1"),
-            _event("b", trace_id="t1"),
-        ])
+        result = await engine.correlate(
+            [
+                _event("a", trace_id="t1"),
+                _event("b", trace_id="t1"),
+            ]
+        )
         assert result.total_events == 2
         assert len(result.groups) == 1
 
     async def test_noise_filtered(self) -> None:
         engine = CorrelationEngine()
-        result = await engine.correlate([
-            _event("a", ts_offset=0),
-            _event("b", ts_offset=100),
-        ])
+        result = await engine.correlate(
+            [
+                _event("a", ts_offset=0),
+                _event("b", ts_offset=100),
+            ]
+        )
         assert result.total_events == 2
         assert len(result.groups) == 0
 
@@ -63,16 +67,20 @@ class TestFullFlow:
         store = InMemoryGraphStore()
         await store.add_edge(DependencyEdge(source="api", target="db"))
         engine = CorrelationEngine(store=store)
-        result = await engine.correlate([
-            _event("a", service="api"),
-            _event("b", service="db"),
-        ])
+        result = await engine.correlate(
+            [
+                _event("a", service="api"),
+                _event("b", service="db"),
+            ]
+        )
         assert len(result.groups) == 1
 
     async def test_strategy_counts_reported(self) -> None:
         engine = CorrelationEngine()
-        result = await engine.correlate([
-            _event("a", trace_id="t1"),
-            _event("b", trace_id="t1"),
-        ])
+        result = await engine.correlate(
+            [
+                _event("a", trace_id="t1"),
+                _event("b", trace_id="t1"),
+            ]
+        )
         assert result.strategy_counts.get("trace_id", 0) == 1

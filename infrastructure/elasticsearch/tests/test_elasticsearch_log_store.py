@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -27,7 +27,7 @@ def config() -> ElasticsearchConfig:
 @pytest.fixture
 def entry() -> LogEntry:
     return LogEntry(
-        timestamp=datetime(2026, 6, 13, 12, 0, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC),
         service="ingestion-service",
         level="ERROR",
         message="Connection refused",
@@ -39,7 +39,7 @@ def entry() -> LogEntry:
 
 class TestIndexNaming:
     def test_index_name_format(self) -> None:
-        dt = datetime(2026, 6, 13, 12, 0, 0, tzinfo=timezone.utc)
+        dt = datetime(2026, 6, 13, 12, 0, 0, tzinfo=UTC)
         name = _index_name(dt)
         assert name == "rp-tl-2026.06.13"
 
@@ -48,11 +48,11 @@ class TestIndexNaming:
         assert name.startswith("rp-tl-")
 
     def test_index_name_pads_single_digit_month(self) -> None:
-        dt = datetime(2026, 1, 5, tzinfo=timezone.utc)
+        dt = datetime(2026, 1, 5, tzinfo=UTC)
         assert _index_name(dt) == "rp-tl-2026.01.05"
 
     def test_index_name_pads_single_digit_day(self) -> None:
-        dt = datetime(2026, 12, 1, tzinfo=timezone.utc)
+        dt = datetime(2026, 12, 1, tzinfo=UTC)
         assert _index_name(dt) == "rp-tl-2026.12.01"
 
 
@@ -70,7 +70,7 @@ class TestBuildEsDoc:
 
     def test_build_doc_without_trace_span(self) -> None:
         entry = LogEntry(
-            timestamp=datetime(2026, 6, 13, tzinfo=timezone.utc),
+            timestamp=datetime(2026, 6, 13, tzinfo=UTC),
             service="test",
             level="INFO",
             message="hello",
@@ -128,8 +128,8 @@ class TestBuildQueryBody:
         assert body["query"]["bool"]["must"] == [{"term": {"trace_id": "abc123"}}]
 
     def test_filter_by_time_range(self) -> None:
-        start = datetime(2026, 6, 13, tzinfo=timezone.utc)
-        end = datetime(2026, 6, 14, tzinfo=timezone.utc)
+        start = datetime(2026, 6, 13, tzinfo=UTC)
+        end = datetime(2026, 6, 14, tzinfo=UTC)
         f = LogFilter(start_time=start, end_time=end)
         body = _build_query_body(f)
         time_range = body["query"]["bool"]["must"][0]["range"]["@timestamp"]

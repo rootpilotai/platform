@@ -2,7 +2,7 @@ import pytest
 
 from shared.domain.correlation.models import CorrelationContext
 from shared.domain.correlation.pipeline import CorrelationPipeline
-from shared.domain.correlation.strategies import TraceIdStrategy, TimeWindowStrategy
+from shared.domain.correlation.strategies import TimeWindowStrategy, TraceIdStrategy
 from shared.domain.timeline.enums import TimelineEventCategory, TimelineEventSource
 from shared.domain.timeline.models import TimelineEvent
 
@@ -10,7 +10,7 @@ from shared.domain.timeline.models import TimelineEvent
 def _event(event_id: str, ts_offset: int = 0, trace_id: str | None = None) -> TimelineEvent:
     import datetime
 
-    base = datetime.datetime(2026, 6, 12, 10, 0, 0, tzinfo=datetime.timezone.utc)
+    base = datetime.datetime(2026, 6, 12, 10, 0, 0, tzinfo=datetime.UTC)
     return TimelineEvent(
         event_id=event_id,
         category=TimelineEventCategory.METRIC_ANOMALY,

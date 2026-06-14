@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class InvestigationServiceConfig(BaseSettings):
-    model_config = {"env_prefix": "INVESTIGATION_"}
+    model_config = {"env_prefix": "INVESTIGATION_", "env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
     service_name: str = "ai-investigation-service"
     environment: str = "development"

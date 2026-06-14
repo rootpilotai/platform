@@ -6,8 +6,7 @@ and returns an InvestigationResult.
 
 import time
 
-from prompts.rca import RCAPrompts
-
+from app.prompts.rca import RCAPrompts
 from shared.contracts.interfaces.llm_provider import LLMProvider
 from shared.domain.incident.context.models import IncidentContext
 from shared.domain.investigation.models import InvestigationResult, RCASummary

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from prompts.rca import RCAPrompts
+from app.prompts.rca import RCAPrompts
 
 from shared.domain.incident.context.models import (
     AggregatedCorrelationGroup,

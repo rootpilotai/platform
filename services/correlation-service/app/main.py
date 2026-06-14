@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.config import CorrelationServiceSettings
 from app.routers import correlation, health, timeline
+from infrastructure.monitoring.otel import OpenTelemetryMiddleware, setup_tracing
 from shared.config import load_settings
 from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.timeline.services import TimelineReconstructor
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
+
+    setup_tracing(app, settings)
 
     app.state.reconstructor = TimelineReconstructor(
         window_duration_seconds=settings.timeline_window_duration,
@@ -41,6 +44,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+    app.add_middleware(OpenTelemetryMiddleware)
     app.include_router(health.router)
     app.include_router(timeline.router)
     app.include_router(correlation.router)

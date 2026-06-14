@@ -6,6 +6,7 @@ from fastapi import FastAPI
 
 from app.config import IngestionServiceSettings
 from app.routers import health, ingest
+from infrastructure.monitoring.otel import OpenTelemetryMiddleware, setup_tracing
 from infrastructure.rabbitmq import RabbitMQConfig, RabbitMQEventBus
 from shared.config import load_settings
 
@@ -21,6 +22,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
+
+    setup_tracing(app, settings)
 
     config = RabbitMQConfig(url=settings.event_bus_url)
     event_bus = RabbitMQEventBus(config=config)
@@ -44,6 +47,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+    app.add_middleware(OpenTelemetryMiddleware)
     app.include_router(health.router)
     app.include_router(ingest.router)
     return app

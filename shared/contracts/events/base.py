@@ -6,6 +6,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from shared.observability.tracing.models import SpanContext
+
 
 def _new_id() -> str:
     return uuid4().hex
@@ -19,4 +21,8 @@ class Event(BaseModel):
     timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         description="When the event was created (UTC).",
+    )
+    trace_context: SpanContext | None = Field(
+        default=None,
+        description="Carried trace context for distributed tracing propagation.",
     )

@@ -5,6 +5,7 @@ from shared.contracts.events.enums import Severity, ServiceName
 from shared.contracts.events.incident import IncidentDetectedEvent
 from shared.contracts.events.investigation import InvestigationRequestedEvent
 from shared.contracts.events.telemetry import TelemetryEvent
+from shared.observability.tracing.models import SpanContext as TraceContext
 
 __all__ = [
     "Event",
@@ -13,5 +14,6 @@ __all__ = [
     "Severity",
     "ServiceName",
     "TelemetryEvent",
+    "TraceContext",
 ]
 

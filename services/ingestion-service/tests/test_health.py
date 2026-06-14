@@ -3,9 +3,7 @@ from httpx import AsyncClient
 
 
 class TestHealthEndpoint:
-    async def test_health_returns_healthy_when_event_bus_connected(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_health_returns_healthy_when_event_bus_connected(self, client: AsyncClient) -> None:
         response = await client.get("/health")
         assert response.status_code == 200
         data = response.json()
@@ -14,9 +12,7 @@ class TestHealthEndpoint:
         assert data["environment"] == "test"
         assert data["event_bus_connected"] is True
 
-    async def test_health_returns_degraded_when_event_bus_disconnected(
-        self, client: AsyncClient, app: FastAPI
-    ) -> None:
+    async def test_health_returns_degraded_when_event_bus_disconnected(self, client: AsyncClient, app: FastAPI) -> None:
         from unittest.mock import AsyncMock
 
         app.state.event_bus.health = AsyncMock(return_value=False)

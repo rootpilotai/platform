@@ -6,6 +6,6 @@ from shared.domain.correlation.grouping.trace_grouping import TraceGroupingServi
 __all__ = [
     "SpanNode",
     "TraceGroup",
-    "TraceTree",
     "TraceGroupingService",
+    "TraceTree",
 ]

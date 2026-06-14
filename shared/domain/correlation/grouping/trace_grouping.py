@@ -77,10 +77,7 @@ class TraceGroupingService:
         for span in span_map.values():
             span.children = children_map.get(span.span_id, [])
 
-        root_spans = [
-            s for s in span_map.values()
-            if s.parent_span_id is None or s.parent_span_id not in span_map
-        ]
+        root_spans = [s for s in span_map.values() if s.parent_span_id is None or s.parent_span_id not in span_map]
 
         return TraceTree(
             trace_id=trace_id,

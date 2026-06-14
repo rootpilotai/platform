@@ -1,7 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from shared.domain.correlation.grouping import TraceGroupingService
-from shared.domain.correlation.grouping.models import SpanNode, TraceTree
 from shared.domain.timeline.enums import TimelineEventCategory, TimelineEventSource
 from shared.domain.timeline.models import TimelineEvent
 
@@ -12,9 +11,9 @@ def _event(
     span_id: str | None = None,
     parent_span_id: str | None = None,
     service: str = "api",
-    ts_offset: int = 0,
+    _ts_offset: int = 0,
 ) -> TimelineEvent:
-    base = datetime(2026, 6, 14, 10, 0, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 6, 14, 10, 0, 0, tzinfo=UTC)
     return TimelineEvent(
         event_id=event_id,
         category=TimelineEventCategory.METRIC_ANOMALY,
@@ -41,9 +40,11 @@ class TestTraceGroupingService:
         assert trees == []
 
     async def test_single_trace_single_span(self) -> None:
-        trees = self.service.build_trace_trees([
-            _event("a", trace_id="t1", span_id="s1"),
-        ])
+        trees = self.service.build_trace_trees(
+            [
+                _event("a", trace_id="t1", span_id="s1"),
+            ]
+        )
         assert len(trees) == 1
         tree = trees[0]
         assert tree.trace_id == "t1"
@@ -52,11 +53,13 @@ class TestTraceGroupingService:
         assert tree.root_spans[0].span_id == "s1"
 
     async def test_parent_child_span_hierarchy(self) -> None:
-        trees = self.service.build_trace_trees([
-            _event("a", trace_id="t1", span_id="s1"),
-            _event("b", trace_id="t1", span_id="s2", parent_span_id="s1"),
-            _event("c", trace_id="t1", span_id="s3", parent_span_id="s2"),
-        ])
+        trees = self.service.build_trace_trees(
+            [
+                _event("a", trace_id="t1", span_id="s1"),
+                _event("b", trace_id="t1", span_id="s2", parent_span_id="s1"),
+                _event("c", trace_id="t1", span_id="s3", parent_span_id="s2"),
+            ]
+        )
         assert len(trees) == 1
         tree = trees[0]
         assert tree.span_count == 3
@@ -69,39 +72,47 @@ class TestTraceGroupingService:
         assert root.children[0].children[0].span_id == "s3"
 
     async def test_multiple_root_spans(self) -> None:
-        trees = self.service.build_trace_trees([
-            _event("a", trace_id="t1", span_id="s1"),
-            _event("b", trace_id="t1", span_id="s2"),
-        ])
+        trees = self.service.build_trace_trees(
+            [
+                _event("a", trace_id="t1", span_id="s1"),
+                _event("b", trace_id="t1", span_id="s2"),
+            ]
+        )
         assert len(trees) == 1
         tree = trees[0]
         assert len(tree.root_spans) == 2
 
     async def test_multiple_traces(self) -> None:
-        trees = self.service.build_trace_trees([
-            _event("a", trace_id="t1", span_id="s1"),
-            _event("b", trace_id="t2", span_id="s2"),
-        ])
+        trees = self.service.build_trace_trees(
+            [
+                _event("a", trace_id="t1", span_id="s1"),
+                _event("b", trace_id="t2", span_id="s2"),
+            ]
+        )
         assert len(trees) == 2
         trace_ids = {t.trace_id for t in trees}
         assert trace_ids == {"t1", "t2"}
 
     async def test_multiple_events_per_span(self) -> None:
-        trees = self.service.build_trace_trees([
-            _event("a", trace_id="t1", span_id="s1"),
-            _event("b", trace_id="t1", span_id="s1"),
-        ])
+        trees = self.service.build_trace_trees(
+            [
+                _event("a", trace_id="t1", span_id="s1"),
+                _event("b", trace_id="t1", span_id="s1"),
+            ]
+        )
         assert len(trees) == 1
         tree = trees[0]
         root = tree.root_spans[0]
         assert sorted(root.event_ids) == ["a", "b"]
 
     async def test_depth_calculation(self) -> None:
-        trees = self.service.build_trace_trees([
-            _event("a", trace_id="t1", span_id="s1"),
-            _event("b", trace_id="t1", span_id="s2", parent_span_id="s1"),
-            _event("c", trace_id="t1", span_id="s3", parent_span_id="s2"),
-        ])
+        trees = self.service.build_trace_trees(
+            [
+                _event("a", trace_id="t1", span_id="s1"),
+                _event("b", trace_id="t1", span_id="s2", parent_span_id="s1"),
+                _event("c", trace_id="t1", span_id="s3", parent_span_id="s2"),
+            ]
+        )
         assert trees[0].depth == 3
 
 
@@ -110,10 +121,12 @@ class TestTraceGroup:
         self.service = TraceGroupingService()
 
     async def test_build_trace_groups(self) -> None:
-        groups = self.service.build_trace_groups([
-            _event("a", trace_id="t1", span_id="s1", service="api"),
-            _event("b", trace_id="t1", span_id="s2", service="db"),
-        ])
+        groups = self.service.build_trace_groups(
+            [
+                _event("a", trace_id="t1", span_id="s1", service="api"),
+                _event("b", trace_id="t1", span_id="s2", service="db"),
+            ]
+        )
         assert len(groups) == 1
         group = groups[0]
         assert group.trace_id == "t1"
@@ -123,9 +136,11 @@ class TestTraceGroup:
         assert group.tree is not None
 
     async def test_trace_group_no_spans(self) -> None:
-        groups = self.service.build_trace_groups([
-            _event("a", trace_id="t1"),
-            _event("b", trace_id="t1"),
-        ])
+        groups = self.service.build_trace_groups(
+            [
+                _event("a", trace_id="t1"),
+                _event("b", trace_id="t1"),
+            ]
+        )
         assert len(groups) == 1
         assert groups[0].span_count == 0

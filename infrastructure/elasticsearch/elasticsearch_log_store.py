@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
-from elasticsearch import AsyncElasticsearch  # type: ignore
-from elasticsearch.helpers import async_bulk  # type: ignore
+from elasticsearch import AsyncElasticsearch
+from elasticsearch.helpers import async_bulk
 from pydantic import BaseModel, Field
 
-from shared.contracts.interfaces.log_store import LogEntry, LogFilter, LogStore, SortOrder
+from shared.contracts.interfaces.log_store import LogEntry, LogFilter, LogStore
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ ILM_POLICY_NAME = "rp-tl-ilm-policy"
 
 def _index_name(dt: datetime | None = None) -> str:
     """Return the target index name for a given timestamp (UTC daily bucket)."""
-    ts = dt or datetime.now(timezone.utc)
+    ts = dt or datetime.now(UTC)
     return f"{INDEX_PREFIX}-{ts.strftime('%Y.%m.%d')}"
 
 
@@ -50,6 +51,7 @@ def _build_es_doc(entry: LogEntry) -> dict:
 # ── Default index template body ──────────────────────────────────────────
 # Applied automatically at startup to ensure consistent mappings.
 # ─────────────────────────────────────────────────────────────────────────
+
 
 def _default_index_template() -> dict:
     return {
@@ -117,6 +119,7 @@ def _default_ilm_policy() -> dict:
 
 # ── Query builder ─────────────────────────────────────────────────────────
 
+
 def _build_query_body(filter: LogFilter) -> dict:
     """Translate a LogFilter into an Elasticsearch query body."""
     must_clauses: list[dict] = []
@@ -157,6 +160,7 @@ def _build_query_body(filter: LogFilter) -> dict:
 
 # ── Elasticsearch Configuration ───────────────────────────────────────────
 
+
 class ElasticsearchConfig(BaseModel):
     hosts: str = Field(
         default="http://localhost:9200",
@@ -181,6 +185,7 @@ class ElasticsearchConfig(BaseModel):
 
 
 # ── Elasticsearch LogStore Adapter ────────────────────────────────────────
+
 
 class ElasticsearchLogStore(LogStore):
     """LogStore implementation backed by Elasticsearch.
@@ -266,7 +271,9 @@ class ElasticsearchLogStore(LogStore):
                 index = _index_name(entry.timestamp)
                 yield {"_index": index, "_source": doc}
 
-        success, errors = await async_bulk(
+        success: int
+        errors: list[Any]
+        success, errors = await async_bulk(  # type: ignore[assignment]
             client=self._client,
             actions=_generate_actions(),
             chunk_size=self._config.bulk_batch_size,
@@ -281,7 +288,7 @@ class ElasticsearchLogStore(LogStore):
         else:
             logger.debug("Bulk write succeeded", extra={"count": success})
 
-    async def query(self, filter: LogFilter) -> AsyncIterator[LogEntry]:
+    async def query(self, filter: LogFilter) -> AsyncIterator[LogEntry]:  # type: ignore[override,misc]
         assert self._client is not None, "ElasticsearchLogStore not started"
 
         body = _build_query_body(filter)

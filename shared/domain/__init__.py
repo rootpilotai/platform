@@ -15,7 +15,15 @@ from shared.domain.correlation import (
     TimeWindowStrategy,
     TraceIdStrategy,
 )
-from shared.domain.timeline import EventClassifier, IncidentTimeline, TimelineEvent, TimelineEventCategory, TimelineEventSource, TimelineReconstructor, TimelineWindow
+from shared.domain.timeline import (
+    EventClassifier,
+    IncidentTimeline,
+    TimelineEvent,
+    TimelineEventCategory,
+    TimelineEventSource,
+    TimelineReconstructor,
+    TimelineWindow,
+)
 
 __all__ = [
     "CorrelationEngine",
@@ -39,4 +47,3 @@ __all__ = [
     "TimelineWindow",
     "TraceIdStrategy",
 ]
-

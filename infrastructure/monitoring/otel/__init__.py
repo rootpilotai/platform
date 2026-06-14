@@ -2,8 +2,8 @@
 
 from infrastructure.monitoring.otel.instrumentation import (
     OpenTelemetryMiddleware,
-    setup_tracing,
     get_trace_context,
+    setup_tracing,
 )
 from infrastructure.monitoring.otel.otel_tracer_provider import (
     OTelSpan,
@@ -16,6 +16,6 @@ __all__ = [
     "OTelTracer",
     "OTelTracerProvider",
     "OpenTelemetryMiddleware",
-    "setup_tracing",
     "get_trace_context",
+    "setup_tracing",
 ]

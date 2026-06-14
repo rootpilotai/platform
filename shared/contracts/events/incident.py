@@ -1,6 +1,6 @@
 """Incident event schemas for detection and lifecycle."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,6 @@ class IncidentDetectedEvent(BaseModel):
         default_factory=list, description="IDs of the source telemetry events that triggered this."
     )
     detected_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the incident was first detected (UTC).",
     )

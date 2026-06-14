@@ -1,7 +1,5 @@
 from pydantic import BaseModel, Field
 
-from shared.domain.timeline.models import TimelineEvent
-
 
 class SpanNode(BaseModel):
     """A span node in a trace tree, with parent-child relationships."""

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.dependencies import get_event_bus, get_settings
 from app.config import IngestionServiceSettings
+from app.dependencies import get_event_bus, get_settings
 from shared.contracts import EventBus
 
 router = APIRouter(tags=["health"])

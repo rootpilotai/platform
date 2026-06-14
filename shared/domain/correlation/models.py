@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -34,7 +34,7 @@ class CorrelationResult(BaseModel):
     strategy_counts: dict[str, int] = Field(default_factory=dict, description="Matches per strategy.")
     duration_ms: float = Field(default=0.0, description="Pipeline execution time in ms.")
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the result was produced.",
     )
 

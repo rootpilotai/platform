@@ -1,7 +1,6 @@
 """Tests for telemetry and incident event contracts."""
 
 import json
-from datetime import datetime, timezone
 
 from shared.contracts.events import (
     Event,
@@ -75,9 +74,7 @@ class TestWrappedInEventEnvelope:
         assert envelope.payload["metric"] == "cpu"
 
     def test_incident_in_envelope(self) -> None:
-        incident = IncidentDetectedEvent(
-            incident_id="INC-001", severity=Severity.ERROR, service="svc", title="err"
-        )
+        incident = IncidentDetectedEvent(incident_id="INC-001", severity=Severity.ERROR, service="svc", title="err")
         envelope = Event(source="svc", topic="incident.detected", payload=incident.model_dump())
         assert envelope.payload["incident_id"] == "INC-001"
 

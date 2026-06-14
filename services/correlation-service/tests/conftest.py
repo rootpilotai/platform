@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config import CorrelationServiceSettings
 from app.main import create_app
+
 from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.timeline.services import TimelineReconstructor
 
@@ -39,7 +40,7 @@ def app(
 
 
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+async def client(app: FastAPI) -> AsyncGenerator[AsyncClient]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac

@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: .venv/Scripts/python.exe -m mypy
+        language: system
+        types: [python]
+        require_serial: true
+        pass_filenames: false
+        args: [--no-error-summary, shared, infrastructure]

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 
@@ -53,7 +53,7 @@ async def correlate_events(
         )
 
     return CorrelateResponse(
-        correlation_id=f"corr-{datetime.now(timezone.utc).isoformat()}",
+        correlation_id=f"corr-{datetime.now(UTC).isoformat()}",
         total_events=ctx.total_events,
         groups=group_responses,
         ungrouped_event_ids=list(ctx.ungrouped_event_ids),

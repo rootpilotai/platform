@@ -1,6 +1,6 @@
 """Telemetry event schema for ingestion and metric forwarding."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +13,6 @@ class TelemetryEvent(BaseModel):
     tags: dict[str, str] = Field(default_factory=dict, description="Dimension key-value pairs.")
     source: str = Field(description="Service or component that produced the telemetry.")
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the measurement was taken (UTC).",
     )

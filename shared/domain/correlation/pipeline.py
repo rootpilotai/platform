@@ -48,7 +48,9 @@ class CorrelationPipeline:
             duration_ms=round(duration, 2),
         )
 
-    def _merge_into_groups(self, matches: list[CorrelationMatch], context: CorrelationContext) -> list[CorrelationGroup]:
+    def _merge_into_groups(
+        self, matches: list[CorrelationMatch], context: CorrelationContext
+    ) -> list[CorrelationGroup]:
         adj: dict[str, set[str]] = defaultdict(set)
         event_scores: dict[str, list[float]] = defaultdict(list)
         event_strategies: dict[str, set[CorrelationStrategyType]] = defaultdict(set)
@@ -83,9 +85,7 @@ class CorrelationPipeline:
             combined_scores: dict[str, float] = {}
             for eid in group:
                 for strategy_key, sc in strategy_scores.get(eid, {}).items():
-                    combined_scores[strategy_key] = max(
-                        combined_scores.get(strategy_key, 0.0), sc
-                    )
+                    combined_scores[strategy_key] = max(combined_scores.get(strategy_key, 0.0), sc)
             groups.append(
                 CorrelationGroup(
                     group_id=uuid4().hex,

@@ -1,6 +1,6 @@
 """Investigation event schema for AI-driven root cause analysis."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -17,6 +17,6 @@ class InvestigationRequestedEvent(BaseModel):
         default="standard", description="Investigation depth: quick summary, standard analysis, or deep dive."
     )
     requested_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the investigation was requested (UTC).",
     )

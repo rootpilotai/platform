@@ -1,8 +1,6 @@
 """Tracing setup utilities and ASGI middleware for FastAPI services."""
 
 import logging
-from collections.abc import Awaitable, Callable
-from typing import Any
 
 from fastapi import FastAPI
 from opentelemetry import trace as otel_trace
@@ -59,9 +57,7 @@ class OpenTelemetryMiddleware:
             await self.app(scope, receive, send)
             return
 
-        provider: OTelTracerProvider | None = getattr(
-            getattr(self.app, "state", None), "tracer_provider", None
-        )
+        provider: OTelTracerProvider | None = getattr(getattr(self.app, "state", None), "tracer_provider", None)
         if provider is None:
             await self.app(scope, receive, send)
             return

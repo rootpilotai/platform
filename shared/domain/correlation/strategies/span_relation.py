@@ -1,6 +1,6 @@
 from shared.domain.correlation.enums import CorrelationSignal, CorrelationStrategyType
 from shared.domain.correlation.grouping import TraceGroupingService
-from shared.domain.correlation.grouping.models import SpanNode, TraceTree
+from shared.domain.correlation.grouping.models import TraceTree
 from shared.domain.correlation.models import CorrelationContext, CorrelationMatch
 from shared.domain.correlation.strategies.base import CorrelationStrategy
 
@@ -71,9 +71,11 @@ class SpanRelationStrategy(CorrelationStrategy):
 
         for sa in spans_a:
             for sb in spans_b:
-                if (sa.parent_span_id is not None
-                        and sb.parent_span_id is not None
-                        and sa.parent_span_id == sb.parent_span_id):
+                if (
+                    sa.parent_span_id is not None
+                    and sb.parent_span_id is not None
+                    and sa.parent_span_id == sb.parent_span_id
+                ):
                     return self.SIBLING_SCORE, CorrelationSignal.SPAN_SIBLING
 
         return self.SAME_TRACE_SCORE, CorrelationSignal.TRACE_MATCH

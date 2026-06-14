@@ -46,7 +46,7 @@ class RabbitMQConfig(BaseModel):
 
 
 class _SubscriberInfo:
-    __slots__ = ("queue_name", "channel", "consumer_tag", "topic")
+    __slots__ = ("channel", "consumer_tag", "queue_name", "topic")
 
     def __init__(
         self,
@@ -174,9 +174,7 @@ class RabbitMQEventBus(EventBus):
     async def health(self) -> bool:
         if self._closed:
             return False
-        if self._connection is None or self._connection.is_closed:
-            return False
-        return True
+        return not (self._connection is None or self._connection.is_closed)
 
     async def _resolve_exchange(self) -> AbstractExchange:
         async with self._lock:
@@ -192,9 +190,7 @@ class RabbitMQEventBus(EventBus):
                 await channel.close()
         return self._exchange
 
-    def _make_handler(
-        self, handler: EventHandler
-    ) -> Callable[[AbstractIncomingMessage], Awaitable[None]]:
+    def _make_handler(self, handler: EventHandler) -> Callable[[AbstractIncomingMessage], Awaitable[None]]:
         async def _on_message(message: AbstractIncomingMessage) -> None:
             async with message.process(requeue=True):
                 try:

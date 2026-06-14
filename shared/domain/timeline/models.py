@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -26,7 +26,9 @@ class TimelineEvent(BaseModel):
 class TimelineWindow(BaseModel):
     window_start: datetime = Field(description="Start of the time window (UTC).")
     window_end: datetime = Field(description="End of the time window (UTC).")
-    events: list[TimelineEvent] = Field(default_factory=list, description="Events in this window, sorted chronologically.")
+    events: list[TimelineEvent] = Field(
+        default_factory=list, description="Events in this window, sorted chronologically."
+    )
 
     @property
     def duration_seconds(self) -> float:
@@ -43,7 +45,7 @@ class IncidentTimeline(BaseModel):
     windows: list[TimelineWindow] = Field(default_factory=list, description="Time-windowed event groups.")
     window_duration_seconds: int = Field(default=300, ge=1, description="Size of each time window in seconds.")
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="When the timeline was built (UTC).",
     )
 

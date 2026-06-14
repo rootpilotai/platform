@@ -1,6 +1,6 @@
 import re
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from shared.contracts.events.telemetry import TelemetryEvent
@@ -10,7 +10,7 @@ from shared.domain.timeline.models import IncidentTimeline, TimelineEvent, Timel
 ClassifierFn = Callable[[str, float, dict[str, str]], TimelineEventCategory]
 
 
-def _default_classifier(metric: str, value: float, tags: dict[str, str]) -> TimelineEventCategory:
+def _default_classifier(metric: str, _value: float, _tags: dict[str, str]) -> TimelineEventCategory:
     _patterns: dict[re.Pattern[str], TimelineEventCategory] = {
         re.compile(r"^(error|failure|exception|fault)", re.IGNORECASE): TimelineEventCategory.FAILURE,
         re.compile(r"^retry", re.IGNORECASE): TimelineEventCategory.RETRY,
@@ -110,4 +110,4 @@ class TimelineReconstructor:
     def _floor_to_window(self, dt: datetime) -> datetime:
         epoch = int(dt.timestamp())
         floored = epoch - (epoch % self._window_duration)
-        return datetime.fromtimestamp(floored, tz=timezone.utc)
+        return datetime.fromtimestamp(floored, tz=UTC)

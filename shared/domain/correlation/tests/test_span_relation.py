@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from shared.domain.correlation.enums import CorrelationSignal, CorrelationStrategyType
 from shared.domain.correlation.models import CorrelationContext
@@ -19,7 +19,7 @@ def _event(
         event_id=event_id,
         category=TimelineEventCategory.METRIC_ANOMALY,
         source=TimelineEventSource.TELEMETRY,
-        timestamp=datetime(2026, 6, 14, 10, 0, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 6, 14, 10, 0, 0, tzinfo=UTC),
         service_name="api",
         title=f"event {event_id}",
         trace_id=trace_id,
@@ -43,57 +43,69 @@ class TestSpanRelationStrategy:
         assert matches == []
 
     async def test_parent_child_scores_highest(self) -> None:
-        ctx = CorrelationContext(events=[
-            _event("a", span_id="s1"),
-            _event("b", span_id="s2", parent_span_id="s1"),
-        ])
+        ctx = CorrelationContext(
+            events=[
+                _event("a", span_id="s1"),
+                _event("b", span_id="s2", parent_span_id="s1"),
+            ]
+        )
         matches = await self.strategy.correlate(ctx)
         assert len(matches) == 1
         assert matches[0].score == SpanRelationStrategy.PARENT_CHILD_SCORE
         assert matches[0].signal == CorrelationSignal.SPAN_PARENT_CHILD
 
     async def test_siblings_score_middle(self) -> None:
-        ctx = CorrelationContext(events=[
-            _event("a", span_id="s1", parent_span_id="s0"),
-            _event("b", span_id="s2", parent_span_id="s0"),
-        ])
+        ctx = CorrelationContext(
+            events=[
+                _event("a", span_id="s1", parent_span_id="s0"),
+                _event("b", span_id="s2", parent_span_id="s0"),
+            ]
+        )
         matches = await self.strategy.correlate(ctx)
         assert len(matches) == 1
         assert matches[0].score == SpanRelationStrategy.SIBLING_SCORE
         assert matches[0].signal == CorrelationSignal.SPAN_SIBLING
 
     async def test_same_trace_no_span_relation_scores_lowest(self) -> None:
-        ctx = CorrelationContext(events=[
-            _event("a", trace_id=TRACE, span_id="s1"),
-            _event("b", trace_id=TRACE, span_id="s2"),
-        ])
+        ctx = CorrelationContext(
+            events=[
+                _event("a", trace_id=TRACE, span_id="s1"),
+                _event("b", trace_id=TRACE, span_id="s2"),
+            ]
+        )
         matches = await self.strategy.correlate(ctx)
         assert len(matches) == 1
         assert matches[0].score == SpanRelationStrategy.SAME_TRACE_SCORE
         assert matches[0].signal == CorrelationSignal.TRACE_MATCH
 
     async def test_events_without_span_ids_fall_back_to_same_trace(self) -> None:
-        ctx = CorrelationContext(events=[
-            _event("a", trace_id=TRACE),
-            _event("b", trace_id=TRACE),
-        ])
+        ctx = CorrelationContext(
+            events=[
+                _event("a", trace_id=TRACE),
+                _event("b", trace_id=TRACE),
+            ]
+        )
         matches = await self.strategy.correlate(ctx)
         assert len(matches) == 1
         assert matches[0].score == SpanRelationStrategy.SAME_TRACE_SCORE
 
     async def test_different_traces_no_match(self) -> None:
-        ctx = CorrelationContext(events=[
-            _event("a", trace_id="t1", span_id="s1"),
-            _event("b", trace_id="t2", span_id="s2"),
-        ])
+        ctx = CorrelationContext(
+            events=[
+                _event("a", trace_id="t1", span_id="s1"),
+                _event("b", trace_id="t2", span_id="s2"),
+            ]
+        )
         matches = await self.strategy.correlate(ctx)
         assert matches == []
 
     async def test_metadata_includes_trace_id(self) -> None:
-        ctx = CorrelationContext(events=[
-            _event("a", span_id="s1"),
-            _event("b", span_id="s2", parent_span_id="s1"),
-        ])
+        ctx = CorrelationContext(
+            events=[
+                _event("a", span_id="s1"),
+                _event("b", span_id="s2", parent_span_id="s1"),
+            ]
+        )
         matches = await self.strategy.correlate(ctx)
         assert matches[0].metadata.get("trace_id") == TRACE
 

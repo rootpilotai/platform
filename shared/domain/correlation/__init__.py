@@ -1,4 +1,4 @@
-"""Telemetry correlation engine models, pipeline, and strategies."""
+"""Telemetry correlation engine models, pipeline, scoring, and strategies."""
 
 from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.correlation.enums import CorrelationSignal, CorrelationStrategyType
@@ -7,8 +7,15 @@ from shared.domain.correlation.models import (
     CorrelationGroup,
     CorrelationMatch,
     CorrelationResult,
+    ScoreContribution,
 )
 from shared.domain.correlation.pipeline import CorrelationPipeline
+from shared.domain.correlation.scoring import (
+    ConfidenceScorer,
+    ScoringPipeline,
+    ScoringStrategy,
+    WeightedProbabilisticScorer,
+)
 from shared.domain.correlation.strategies import (
     CorrelationStrategy,
     DependencyStrategy,
@@ -19,6 +26,7 @@ from shared.domain.correlation.strategies import (
 )
 
 __all__ = [
+    "ConfidenceScorer",
     "CorrelationContext",
     "CorrelationEngine",
     "CorrelationGroup",
@@ -31,6 +39,10 @@ __all__ = [
     "DependencyStrategy",
     "ErrorSignatureStrategy",
     "RequestIdStrategy",
+    "ScoreContribution",
+    "ScoringPipeline",
+    "ScoringStrategy",
     "TimeWindowStrategy",
     "TraceIdStrategy",
+    "WeightedProbabilisticScorer",
 ]

@@ -15,6 +15,8 @@ class TimelineEvent(BaseModel):
     title: str = Field(description="Short human-readable event summary.")
     description: str = Field(default="", description="Detailed event description.")
     trace_id: str | None = Field(default=None, description="Correlated trace identifier.")
+    span_id: str | None = Field(default=None, description="Span identifier within the trace (16 hex chars).")
+    parent_span_id: str | None = Field(default=None, description="Parent span identifier, if this span is a child.")
     request_id: str | None = Field(default=None, description="Correlated request identifier.")
     severity: Severity | None = Field(default=None, description="Severity level if applicable.")
     tags: dict[str, str] = Field(default_factory=dict, description="Dimension key-value pairs.")

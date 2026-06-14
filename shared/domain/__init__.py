@@ -1,4 +1,4 @@
-"""Domain models, graph primitives, timeline, and correlation for RootPilot."""
+"""Domain models, graph primitives, timeline, correlation, and incident context for RootPilot."""
 
 from shared.domain.correlation import (
     CorrelationEngine,
@@ -15,6 +15,13 @@ from shared.domain.correlation import (
     TimeWindowStrategy,
     TraceIdStrategy,
 )
+from shared.domain.incident.context import (
+    AggregatedCorrelationGroup,
+    AggregatedTimeline,
+    ImpactAnalysis,
+    IncidentContext,
+    IncidentContextAggregator,
+)
 from shared.domain.timeline import (
     EventClassifier,
     IncidentTimeline,
@@ -26,6 +33,8 @@ from shared.domain.timeline import (
 )
 
 __all__ = [
+    "AggregatedCorrelationGroup",
+    "AggregatedTimeline",
     "CorrelationEngine",
     "CorrelationGroup",
     "CorrelationMatch",
@@ -37,6 +46,9 @@ __all__ = [
     "DependencyStrategy",
     "ErrorSignatureStrategy",
     "EventClassifier",
+    "ImpactAnalysis",
+    "IncidentContext",
+    "IncidentContextAggregator",
     "IncidentTimeline",
     "RequestIdStrategy",
     "TimeWindowStrategy",

@@ -1,5 +1,9 @@
-"""Elasticsearch LogStore adapter implementation."""
+"""Elasticsearch adapter implementations."""
 
+from infrastructure.elasticsearch.elasticsearch_incident_store import (
+    ElasticsearchIncidentStore,
+    IncidentElasticsearchConfig,
+)
 from infrastructure.elasticsearch.elasticsearch_log_store import (
     ElasticsearchConfig,
     ElasticsearchLogStore,
@@ -7,5 +11,7 @@ from infrastructure.elasticsearch.elasticsearch_log_store import (
 
 __all__ = [
     "ElasticsearchConfig",
+    "ElasticsearchIncidentStore",
     "ElasticsearchLogStore",
+    "IncidentElasticsearchConfig",
 ]

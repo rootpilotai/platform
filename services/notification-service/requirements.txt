@@ -4,6 +4,7 @@ pydantic
 pydantic-settings
 aio-pika>=9.5,<10
 slack-sdk
+aiohttp
 httpx
 opentelemetry-api>=1.28,<2
 opentelemetry-sdk>=1.28,<2

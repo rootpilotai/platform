@@ -18,3 +18,11 @@ class ServiceName(StrEnum):
     INCIDENT = "incident-service"
     GATEWAY = "gateway-service"
     NOTIFICATION = "notification-service"
+
+
+class EventTopic(StrEnum):
+    TELEMETRY_INGESTED = "telemetry.ingested"
+    INCIDENT_DETECTED = "incident.detected"
+    INVESTIGATION_REQUESTED = "investigation.requested"
+    INVESTIGATION_COMPLETED = "investigation.completed"
+    NOTIFICATION_DEAD_LETTER = "notification.dead-letter"

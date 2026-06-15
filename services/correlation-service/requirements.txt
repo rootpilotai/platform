@@ -2,6 +2,8 @@ fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings
+aio-pika>=9.5,<10
+httpx
 opentelemetry-api>=1.28,<2
 opentelemetry-sdk>=1.28,<2
 opentelemetry-exporter-otlp-proto-http>=1.28,<2

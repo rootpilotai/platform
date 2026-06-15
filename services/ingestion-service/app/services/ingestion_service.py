@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 from app.schemas import IngestRequest
 from shared.contracts import Event, EventBus, ServiceName, TelemetryEvent
+from shared.contracts.events import EventTopic
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class IngestionService:
         )
         envelope = Event(
             source=ServiceName.INGESTION,
-            topic="telemetry.ingested",
+            topic=EventTopic.TELEMETRY_INGESTED,
             payload=telemetry.model_dump(),
         )
         await self._event_bus.publish(envelope)

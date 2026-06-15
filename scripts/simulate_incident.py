@@ -1,20 +1,31 @@
 """Simulate a realistic database latency spike incident end-to-end.
 
-Sends telemetry to the ingestion service (port 8000), then builds an
-incident context and runs the investigation pipeline (port 8002).
+Two modes:
+  1) Event-driven (default) — sends telemetry to ingestion; the automated
+     pipeline (correlation → investigation → notification) handles the rest.
+  2) Direct — calls the investigation REST endpoint directly for testing
+     without RabbitMQ/full stack.
 
 Usage:
-    python -m scripts.simulate_incident
-    # or: python scripts/simulate_incident.py
+    python -m scripts.simulate_incident              # event-driven mode
+    python -m scripts.simulate_incident --direct      # bypass event bus
 """
 
+import argparse
 import sys
+import time
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
-INGESTION_URL = "http://localhost:8000/api/v1/ingest"
+HEALTH_URLS = {
+    "ingestion (8000)": "http://localhost:8000/health",
+    "notification (8003)": "http://localhost:8003/health",
+}
+
+TELEMETRY_URL = "http://localhost:8000/api/v1/ingest"
 INVESTIGATION_URL = "http://localhost:8002/investigate/run"
+NOTIFICATION_HEALTH_URL = "http://localhost:8003/health"
 
 
 def _ts(offset_seconds: int = 0) -> str:
@@ -46,12 +57,15 @@ TELEMETRY_BATCH = [
 def send_telemetry(client: httpx.Client) -> list[str]:
     ids: list[str] = []
     for point in TELEMETRY_BATCH:
-        resp = client.post(INGESTION_URL, json=point)
+        resp = client.post(TELEMETRY_URL, json=point)
         resp.raise_for_status()
         data = resp.json()
         ids.append(data["event_id"])
         print(f"  ✓ {point['metric']:30s} = {point['value']:>8} {point['unit'] or '':4s}  →  {data['event_id'][:8]}...")
     return ids
+
+
+# ── Direct mode (manual investigation via REST) ─────────────────────────
 
 
 def build_incident_context(event_ids: list[str]) -> dict:
@@ -105,31 +119,81 @@ def build_incident_context(event_ids: list[str]) -> dict:
     }
 
 
-def run_investigation(client: httpx.Client, context: dict) -> dict:
+def print_result(result: dict) -> None:
+    summary = result["summary"]
+    print(f"  Incident:   {summary['incident_id']}")
+    print(f"  Title:      {summary['title']}")
+    print(f"  Duration:   {result['duration_ms']:.0f}ms")
+    print(f"  Confidence: {summary['overall_confidence']:.0%}")
+    print(f"\n  Root Causes ({len(summary['root_causes'])}):")
+    for rc in summary["root_causes"]:
+        print(f"    • {rc['service']:25s}  ({rc['confidence']:.0%} confidence)")
+        print(f"      {rc['explanation'][:150]}")
+    print(f"\n  Remediation ({len(summary.get('remediation', []))}):")
+    for step in summary.get("remediation", []):
+        print(f"    • [{step['priority']:>8}] {step['action']}")
+    print(f"\n  Timeline:")
+    print(f"    {summary['progression']['timeline_summary'][:200]}")
+
+
+def run_direct(client: httpx.Client, context: dict) -> dict:
     resp = client.post(INVESTIGATION_URL, json=context, timeout=120)
     resp.raise_for_status()
     return resp.json()
 
 
-def check_service(url: str, name: str) -> bool:
-    try:
-        resp = httpx.get(url.replace("/api/v1/ingest", "/health").replace("/investigate/run", "/health"), timeout=5)
-        return resp.is_success
-    except httpx.RequestError as e:
-        print(f"  ✗ {name} unreachable ({e})")
-        return False
+# ── Event-driven mode (via RabbitMQ) ───────────────────────────────────
+
+
+def wait_for_notification(timeout_seconds: int = 30) -> bool:
+    """Poll the notification health endpoint until providers become active."""
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        try:
+            resp = httpx.get(NOTIFICATION_HEALTH_URL, timeout=3)
+            if resp.is_success:
+                data = resp.json()
+                providers = data.get("providers", [])
+                if providers:
+                    print(f"  ✓ Notification providers active: {[p['name'] for p in providers]}")
+                return True
+        except httpx.RequestError:
+            pass
+        print("  . waiting for event-driven pipeline...")
+        time.sleep(3)
+    return False
+
+
+# ── Shared helpers ─────────────────────────────────────────────────────
+
+
+def check_services() -> bool:
+    ok = True
+    for name, url in HEALTH_URLS.items():
+        try:
+            resp = httpx.get(url, timeout=5)
+            if resp.is_success:
+                print(f"  ✓ {name}")
+            else:
+                print(f"  ✗ {name} ({resp.status_code})")
+                ok = False
+        except httpx.RequestError:
+            print(f"  ✗ {name} (unreachable)")
+            ok = False
+    return ok
 
 
 def main() -> None:
-    print("Checking services...")
-    health_ok = (
-        check_service(INGESTION_URL, "ingestion (port 8000)")
-        and check_service(INVESTIGATION_URL, "investigation (port 8002)")
-    )
-    if not health_ok:
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="RootPilot incident simulation")
+    parser.add_argument("--direct", action="store_true", help="Bypass event bus and call investigation REST endpoint directly")
+    args = parser.parse_args()
 
-    print("\n── Scenario: Database Latency Spike ──────────────────────")
+    print("── Checking services ────────────────────────────────────")
+    if not check_services():
+        print("\nSome services are unavailable. Starting ingestion only...")
+    print()
+
+    print("── Scenario: Database Latency Spike ─────────────────────")
     print("    Primary database CPU spikes → query latency jumps to 2.3s\n")
 
     with httpx.Client() as client:
@@ -137,26 +201,24 @@ def main() -> None:
         event_ids = send_telemetry(client)
         print(f"\n  ✓ {len(event_ids)} events accepted\n")
 
-        print("Building incident context and running investigation...")
-        context = build_incident_context(event_ids)
-        result = run_investigation(client, context)
+        if args.direct:
+            print("Direct mode — building incident context and calling investigation REST endpoint...")
+            context = build_incident_context(event_ids)
+            result = run_direct(client, context)
+            print(f"\n── Investigation Result ────────────────────────────")
+            print_result(result)
+        else:
+            print("Event-driven mode — telemetry flows through the automated pipeline:")
+            print("    ingestion → correlation → investigation → notification")
+            print(f"\n  Waiting for the pipeline to process ({'checking notification service'})...")
+            if wait_for_notification(timeout_seconds=30):
+                print("\n  ✓ Pipeline completed. Notifications dispatched (check Slack/Discord).")
+            else:
+                print("\n  ⚠ Notification service still waiting for events.")
+                print("    Ensure RabbitMQ and all services are running with `docker compose up`.")
+                print("    Fallback: run with `--direct` to test investigation without RabbitMQ.")
 
-        print(f"\n── Investigation Result ──────────────────────────────")
-        summary = result["summary"]
-        print(f"  Incident:   {summary['incident_id']}")
-        print(f"  Title:      {summary['title']}")
-        print(f"  Duration:   {result['duration_ms']:.0f}ms")
-        print(f"  Confidence: {summary['overall_confidence']:.0%}")
-        print(f"\n  Root Causes ({len(summary['root_causes'])}):")
-        for rc in summary["root_causes"]:
-            print(f"    • {rc['service']:25s}  ({rc['confidence']:.0%} confidence)")
-            print(f"      {rc['explanation'][:150]}")
-        print(f"\n  Remediation ({len(summary.get('remediation', []))}):")
-        for step in summary.get("remediation", []):
-            print(f"    • [{step['priority']:>8}] {step['action']}")
-        print(f"\n  Timeline:")
-        print(f"    {summary['progression']['timeline_summary'][:200]}")
-        print(f"\nDone.")
+    print("\nDone.")
 
 
 if __name__ == "__main__":

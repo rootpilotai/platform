@@ -4,7 +4,6 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from app.config import NotificationServiceSettings
-from app.services.provider_router import NotificationRouter
 
 router = APIRouter(tags=["health"])
 
@@ -25,14 +24,17 @@ class HealthResponse(BaseModel):
 @router.get("/health", response_model=HealthResponse)
 async def health(request: Request) -> HealthResponse:
     settings: NotificationServiceSettings = request.app.state.settings
-    event_bus = request.app.state.event_bus
-    router: NotificationRouter = request.app.state.router
+    event_bus = getattr(request.app.state, "event_bus", None)
+    router = getattr(request.app.state, "router", None)
 
     event_bus_healthy = False
-    with suppress(Exception):
-        event_bus_healthy = await event_bus.health()
+    if event_bus is not None:
+        with suppress(Exception):
+            event_bus_healthy = await event_bus.health()
 
-    provider_status = [ProviderHealth(name=name, connected=ok) for name, ok in (await router.health()).items()]
+    provider_status = []
+    if router is not None:
+        provider_status = [ProviderHealth(name=name, connected=ok) for name, ok in (await router.health()).items()]
 
     status = "healthy" if event_bus_healthy else "degraded"
 

@@ -13,6 +13,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - rootpilot-net
 
   postgres:
     image: postgres:16
@@ -30,6 +32,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - rootpilot-net
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
@@ -47,6 +51,8 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
+    networks:
+      - rootpilot-net
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.112.0
@@ -60,6 +66,64 @@ services:
       - OTEL_LOG_LEVEL=debug
     volumes:
       - ./infrastructure/monitoring/otel/otel-collector.yml:/etc/otelcol-contrib/config.yaml
+    networks:
+      - rootpilot-net
+
+  ingestion-service:
+    build:
+      context: .
+      dockerfile: services/ingestion-service/Dockerfile
+    container_name: rootpilot-ingestion
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+      EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rootpilot-net
+
+  correlation-service:
+    build:
+      context: .
+      dockerfile: services/correlation-service/Dockerfile
+    container_name: rootpilot-correlation
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8001
+      EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rootpilot-net
+
+  ai-investigation-service:
+    build:
+      context: .
+      dockerfile: services/ai-investigation-service/Dockerfile
+    container_name: rootpilot-ai-investigation
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env
+    environment:
+      INVESTIGATION_EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
+      INVESTIGATION_LLM_PROVIDER: openai
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rootpilot-net
 
   notification-service:
     build:
@@ -68,16 +132,22 @@ services:
     container_name: rootpilot-notification
     ports:
       - "8003:8003"
+    env_file:
+      - .env
     environment:
-      NOTIFICATION_SERVICE_NAME: notification-service
-      NOTIFICATION_ENVIRONMENT: development
-      NOTIFICATION_EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
-      NOTIFICATION_SLACK_ENABLED: "false"
-      NOTIFICATION_DISCORD_ENABLED: "false"
+      HOST: 0.0.0.0
+      PORT: 8003
+      EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
     depends_on:
       rabbitmq:
         condition: service_healthy
+    networks:
+      - rootpilot-net
 
 volumes:
   rootpilot-postgres-data:
   rootpilot-elasticsearch-data:
+
+networks:
+  rootpilot-net:
+    driver: bridge

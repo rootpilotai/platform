@@ -4,8 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.pipeline import InvestigationPipeline
 from shared.contracts import Event, EventBus
-from shared.contracts.events import InvestigationCompletedEvent
-from shared.contracts.events.enums import ServiceName
+from shared.contracts.events import EventTopic, InvestigationCompletedEvent, ServiceName
 from shared.domain.incident.context.models import IncidentContext
 from shared.domain.investigation.models import InvestigationResult
 
@@ -44,7 +43,7 @@ async def run_investigation(
         )
         event = Event(
             source=ServiceName.INVESTIGATION,
-            topic="investigation.completed",
+            topic=EventTopic.INVESTIGATION_COMPLETED,
             payload=completed.model_dump(),
         )
         await event_bus.publish(event)

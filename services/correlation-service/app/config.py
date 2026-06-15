@@ -16,3 +16,23 @@ class CorrelationServiceSettings(BaseAppSettings):
         ge=1,
         description="Default timeline window duration in seconds.",
     )
+    correlation_window_seconds: int = Field(
+        default=300,
+        ge=1,
+        description="Time window in seconds for telemetry event accumulation before correlation.",
+    )
+    correlation_min_events: int = Field(
+        default=3,
+        ge=1,
+        description="Minimum accumulated events before correlation is triggered.",
+    )
+    correlation_min_score: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=1.0,
+        description="Minimum composite score threshold for correlation groups.",
+    )
+    correlation_incident_severity: str = Field(
+        default="ERROR",
+        description="Default severity assigned to incidents created by the correlation pipeline.",
+    )

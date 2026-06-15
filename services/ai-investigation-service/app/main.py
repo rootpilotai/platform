@@ -24,7 +24,12 @@ async def _handle_investigation_requested(
     pipeline: InvestigationPipeline,
     event_bus: EventBus,
 ) -> None:
-    requested = InvestigationRequestedEvent(**event.payload)
+    try:
+        requested = InvestigationRequestedEvent(**event.payload)
+    except Exception:
+        logger.exception("Failed to parse investigation.requested payload")
+        return
+
     logger.info(
         "Received investigation.requested",
         extra={"incident_id": requested.incident_id, "depth": requested.depth},

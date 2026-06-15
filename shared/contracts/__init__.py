@@ -3,6 +3,7 @@
 from shared.contracts.events import (
     Event,
     IncidentDetectedEvent,
+    InvestigationCompletedEvent,
     InvestigationRequestedEvent,
     ServiceName,
     Severity,
@@ -16,12 +17,15 @@ from shared.contracts.interfaces import (
     LogEntry,
     LogFilter,
     LogStore,
+    NotificationProvider,
 )
+from shared.contracts.schemas import NotificationMessage
 
 __all__ = [
     "Event",
     "EventBus",
     "IncidentDetectedEvent",
+    "InvestigationCompletedEvent",
     "InvestigationRequestedEvent",
     "LLMMessage",
     "LLMProvider",
@@ -29,6 +33,8 @@ __all__ = [
     "LogEntry",
     "LogFilter",
     "LogStore",
+    "NotificationMessage",
+    "NotificationProvider",
     "ServiceName",
     "Severity",
     "TelemetryEvent",

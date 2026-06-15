@@ -5,6 +5,7 @@ import json
 from shared.contracts.events import (
     Event,
     IncidentDetectedEvent,
+    InvestigationCompletedEvent,
     InvestigationRequestedEvent,
     Severity,
     TelemetryEvent,
@@ -83,13 +84,42 @@ class TestWrappedInEventEnvelope:
         envelope = Event(source="svc", topic="investigation.requested", payload=inv.model_dump())
         assert envelope.payload["investigation_id"] == "INV-001"
 
+    def test_investigation_completed_in_envelope(self) -> None:
+        completed = InvestigationCompletedEvent(
+            investigation_id="INV-001",
+            incident_id="INC-001",
+            summary={"title": "outage", "root_causes": []},
+        )
+        envelope = Event(
+            source="ai-investigation-service", topic="investigation.completed", payload=completed.model_dump()
+        )
+        assert envelope.payload["investigation_id"] == "INV-001"
+        assert envelope.payload["summary"]["title"] == "outage"
+
+
+class TestInvestigationCompletedEvent:
+    def test_round_trip_json(self) -> None:
+        original = InvestigationCompletedEvent(
+            investigation_id="INV-001",
+            incident_id="INC-001",
+            summary={"title": "test", "root_causes": []},
+        )
+        restored = InvestigationCompletedEvent.model_validate_json(original.model_dump_json())
+        assert restored == original
+
+    def test_summary_defaults_to_empty_dict(self) -> None:
+        event = InvestigationCompletedEvent(investigation_id="INV-002", incident_id="INC-002", summary={})
+        assert event.summary == {}
+
 
 class TestVersionAware:
     def test_all_events_have_model_version(self) -> None:
         telemetry = TelemetryEvent(metric="cpu", value=1.0, source="test")
         incident = IncidentDetectedEvent(incident_id="INC-001", severity=Severity.INFO, service="svc", title="t")
         inv = InvestigationRequestedEvent(investigation_id="INV-001", incident_id="INC-001")
+        completed = InvestigationCompletedEvent(investigation_id="INV-001", incident_id="INC-001", summary={})
 
         assert telemetry.model_version == "1.0"
         assert incident.model_version == "1.0"
         assert inv.model_version == "1.0"
+        assert completed.model_version == "1.0"

@@ -61,6 +61,23 @@ services:
     volumes:
       - ./infrastructure/monitoring/otel/otel-collector.yml:/etc/otelcol-contrib/config.yaml
 
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: rootpilot-notification
+    ports:
+      - "8003:8003"
+    environment:
+      NOTIFICATION_SERVICE_NAME: notification-service
+      NOTIFICATION_ENVIRONMENT: development
+      NOTIFICATION_EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
+      NOTIFICATION_SLACK_ENABLED: "false"
+      NOTIFICATION_DISCORD_ENABLED: "false"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
 volumes:
   rootpilot-postgres-data:
   rootpilot-elasticsearch-data:

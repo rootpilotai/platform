@@ -1,4 +1,4 @@
-"""Investigation event schema for AI-driven root cause analysis."""
+"""Investigation event schemas for AI-driven root cause analysis."""
 
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -19,4 +19,15 @@ class InvestigationRequestedEvent(BaseModel):
     requested_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         description="When the investigation was requested (UTC).",
+    )
+
+
+class InvestigationCompletedEvent(BaseModel):
+    model_version: str = "1.0"
+    investigation_id: str = Field(description="Unique investigation identifier.")
+    incident_id: str = Field(description="Incident identifier this investigation relates to.")
+    summary: dict[str, Any] = Field(description="Complete root cause analysis summary as structured dict.")
+    completed_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="When the investigation was completed (UTC).",
     )

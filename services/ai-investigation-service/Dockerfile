@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 COPY services/ai-investigation-service/app ./app
 COPY services/ai-investigation-service/workflows ./workflows
+COPY services/ai-investigation-service/run.py ./run.py
 
 EXPOSE 8002
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8002"]

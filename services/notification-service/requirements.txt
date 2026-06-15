@@ -2,9 +2,9 @@ fastapi
 uvicorn[standard]
 pydantic
 pydantic-settings
-langgraph
-openai
 aio-pika>=9.5,<10
+slack-sdk
+httpx
 opentelemetry-api>=1.28,<2
 opentelemetry-sdk>=1.28,<2
 opentelemetry-exporter-otlp-proto-http>=1.28,<2

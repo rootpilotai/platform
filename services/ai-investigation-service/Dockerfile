@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY shared ./shared
+COPY infrastructure ./infrastructure
 COPY services/ai-investigation-service/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir --no-deps .

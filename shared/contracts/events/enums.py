@@ -17,3 +17,4 @@ class ServiceName(StrEnum):
     INVESTIGATION = "ai-investigation-service"
     INCIDENT = "incident-service"
     GATEWAY = "gateway-service"
+    NOTIFICATION = "notification-service"

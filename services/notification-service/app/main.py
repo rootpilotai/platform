@@ -12,12 +12,12 @@ from app.services.provider_router import NotificationRouter
 from infrastructure.monitoring.otel import setup_tracing
 from shared.config import load_settings
 from shared.contracts import Event, EventBus
-from shared.contracts.events import InvestigationCompletedEvent
+from shared.contracts.events import EventTopic, InvestigationCompletedEvent
 from shared.contracts.schemas.notification import NotificationMessage
 
 logger = logging.getLogger(__name__)
 
-DEAD_LETTER_TOPIC = "notification.dead-letter"
+DEAD_LETTER_TOPIC = EventTopic.NOTIFICATION_DEAD_LETTER
 
 EventBusFactory = Callable[[str], Awaitable[EventBus]]
 
@@ -107,7 +107,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             except Exception:
                 logger.exception("Failed to publish dead-letter event")
 
-    await event_bus.subscribe("investigation.completed", handle_investigation_completed)
+    await event_bus.subscribe(EventTopic.INVESTIGATION_COMPLETED, handle_investigation_completed)
     logger.info("Subscribed to investigation.completed")
 
     logger.info("Service started", extra={"service": settings.service_name})

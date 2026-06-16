@@ -101,8 +101,11 @@ services:
       HOST: 0.0.0.0
       PORT: 8001
       EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     networks:
       - rootpilot-net
@@ -119,8 +122,11 @@ services:
     environment:
       INVESTIGATION_EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
       INVESTIGATION_LLM_PROVIDER: openai
+      INVESTIGATION_ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     networks:
       - rootpilot-net

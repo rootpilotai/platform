@@ -21,3 +21,15 @@ class InvestigationServiceConfig(BaseAppSettings):
         default="amqp://rootpilot:rootpilot@localhost:5672/",
         description="Event bus connection URL.",
     )
+    elasticsearch_hosts: str = Field(
+        default="http://localhost:9200",
+        description="Elasticsearch server URL(s).",
+    )
+    elasticsearch_username: str | None = Field(
+        default=None,
+        description="Elasticsearch basic auth username.",
+    )
+    elasticsearch_password: str | None = Field(
+        default=None,
+        description="Elasticsearch basic auth password.",
+    )

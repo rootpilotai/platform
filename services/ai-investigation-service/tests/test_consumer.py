@@ -56,6 +56,13 @@ def mock_event_bus() -> AsyncMock:
     return bus
 
 
+@pytest.fixture
+def mock_investigation_store() -> AsyncMock:
+    store = AsyncMock()
+    store.store = AsyncMock()
+    return store
+
+
 def _make_context_dict() -> dict:
     return IncidentContext(
         incident_id="inc-001",
@@ -132,3 +139,16 @@ class TestInvestigationRequestedConsumer:
         assert isinstance(summary, dict)
         assert "root_causes" in summary
         assert "title" in summary
+
+    async def test_persists_investigation_to_store(
+        self,
+        investigation_event: Event,
+        pipeline: InvestigationPipeline,
+        mock_event_bus: AsyncMock,
+        mock_investigation_store: AsyncMock,
+    ) -> None:
+        await _handle_investigation_requested(investigation_event, pipeline, mock_event_bus, mock_investigation_store)
+
+        mock_investigation_store.store.assert_awaited_once()
+        args = mock_investigation_store.store.await_args
+        assert args[0][0] == "inv-001"

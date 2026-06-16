@@ -31,15 +31,24 @@ def reconstructor() -> TimelineReconstructor:
 
 
 @pytest.fixture
+def mock_incident_store() -> MagicMock:
+    store = MagicMock()
+    store.store = AsyncMock()
+    return store
+
+
+@pytest.fixture
 def manager(
     engine: CorrelationEngine,
     reconstructor: TimelineReconstructor,
     mock_event_bus: MagicMock,
+    mock_incident_store: MagicMock,
 ) -> ConnectionManager:
     return ConnectionManager(
         engine=engine,
         reconstructor=reconstructor,
         event_bus=mock_event_bus,
+        incident_store=mock_incident_store,
         window_seconds=3600,
         min_events=2,
         min_score=0.0,
@@ -78,6 +87,17 @@ class TestConnectionManager:
         call_args = manager._event_bus.publish.await_args_list
         published_topics = [args[0][0].topic for args in call_args]
         assert EventTopic.INVESTIGATION_REQUESTED in published_topics
+
+    async def test_persists_incident_to_store_on_correlation(
+        self, manager: ConnectionManager, mock_incident_store: MagicMock
+    ) -> None:
+        ev1 = _make_telemetry_event(metric="cpu.usage", value=95.0, source="web-01")
+        ev2 = _make_telemetry_event(metric="mem.usage", value=90.0, source="web-01")
+
+        await manager.handle_telemetry_event(ev1)
+        await manager.handle_telemetry_event(ev2)
+
+        mock_incident_store.store.assert_awaited_once()
 
     async def test_prunes_old_events(self) -> None:
         bus = MagicMock()

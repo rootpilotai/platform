@@ -3,6 +3,7 @@ uvicorn[standard]
 pydantic
 pydantic-settings
 aio-pika>=9.5,<10
+elasticsearch>=8.15,<9
 httpx
 opentelemetry-api>=1.28,<2
 opentelemetry-sdk>=1.28,<2

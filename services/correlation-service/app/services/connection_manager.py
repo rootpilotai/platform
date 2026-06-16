@@ -7,6 +7,7 @@ from uuid import uuid4
 from shared.contracts import Event, EventBus
 from shared.contracts.events import EventTopic, InvestigationRequestedEvent, ServiceName
 from shared.contracts.events.telemetry import TelemetryEvent
+from shared.contracts.interfaces.incident_store import IncidentStore
 from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.incident.context.builders import (
     ContextBuilder,
@@ -25,6 +26,7 @@ class ConnectionManager:
         engine: CorrelationEngine,
         reconstructor: TimelineReconstructor,
         event_bus: EventBus,
+        incident_store: IncidentStore | None = None,
         window_seconds: int = 300,
         min_events: int = 3,
         min_score: float = 0.2,
@@ -33,6 +35,7 @@ class ConnectionManager:
         self._engine = engine
         self._reconstructor = reconstructor
         self._event_bus = event_bus
+        self._incident_store = incident_store
         self._window_seconds = window_seconds
         self._min_events = min_events
         self._min_score = min_score
@@ -85,6 +88,9 @@ class ConnectionManager:
             title=f"Correlated incident detected across {len(services)} service(s)",
             detected_at=datetime.now(UTC),
         )
+
+        if self._incident_store is not None:
+            await self._incident_store.store(context)
 
         requested = InvestigationRequestedEvent(
             investigation_id=incident_id,

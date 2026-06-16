@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from app.config import CorrelationServiceSettings
 from app.routers import correlation, health, timeline
 from app.services.connection_manager import ConnectionManager
+from infrastructure.elasticsearch import ElasticsearchIncidentStore
+from infrastructure.elasticsearch.elasticsearch_incident_store import IncidentElasticsearchConfig
 from infrastructure.monitoring.otel import OpenTelemetryMiddleware, setup_tracing
 from shared.config import load_settings
 from shared.contracts import EventBus
@@ -39,6 +41,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.reconstructor = reconstructor
     app.state.engine = engine
 
+    es_config = IncidentElasticsearchConfig(
+        hosts=settings.elasticsearch_hosts,
+        username=settings.elasticsearch_username,
+        password=settings.elasticsearch_password,
+    )
+    incident_store = ElasticsearchIncidentStore(config=es_config)
+    await incident_store.start()
+    app.state.incident_store = incident_store
+
     factory: EventBusFactory | None = getattr(app.state, "_event_bus_factory", None)
     if factory is not None:
         event_bus = await factory(settings.event_bus_url)
@@ -48,6 +59,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             engine=engine,
             reconstructor=reconstructor,
             event_bus=event_bus,
+            incident_store=incident_store,
             window_seconds=settings.correlation_window_seconds,
             min_events=settings.correlation_min_events,
             min_score=settings.correlation_min_score,
@@ -66,6 +78,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Service started", extra={"service": settings.service_name})
     yield
 
+    incident_store: ElasticsearchIncidentStore | None = getattr(app.state, "incident_store", None)
+    if incident_store is not None:
+        await incident_store.close()
     manager: ConnectionManager | None = getattr(app.state, "connection_manager", None)
     if manager is not None:
         await manager.close()

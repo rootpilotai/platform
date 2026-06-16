@@ -7,11 +7,14 @@ from fastapi import FastAPI
 from app.config import InvestigationServiceConfig
 from app.pipeline import InvestigationPipeline
 from app.routers import health, investigate
+from infrastructure.elasticsearch import ElasticsearchInvestigationStore
+from infrastructure.elasticsearch.elasticsearch_investigation_store import InvestigationElasticsearchConfig
 from infrastructure.monitoring.otel import setup_tracing
 from infrastructure.openai.openai_llm_provider import OpenAILLMProvider, OpenAIProviderConfig
 from shared.config import load_settings
 from shared.contracts import Event, EventBus
 from shared.contracts.events import EventTopic, InvestigationCompletedEvent, InvestigationRequestedEvent, ServiceName
+from shared.contracts.interfaces.investigation_store import InvestigationStore
 from shared.domain.incident.context.models import IncidentContext
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,7 @@ async def _handle_investigation_requested(
     event: Event,
     pipeline: InvestigationPipeline,
     event_bus: EventBus,
+    investigation_store: InvestigationStore | None = None,
 ) -> None:
     try:
         requested = InvestigationRequestedEvent(**event.payload)
@@ -45,6 +49,9 @@ async def _handle_investigation_requested(
         return
 
     result = await pipeline.run(context)
+
+    if investigation_store is not None:
+        await investigation_store.store(requested.investigation_id, result)
 
     try:
         completed = InvestigationCompletedEvent(
@@ -81,12 +88,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     pipeline = InvestigationPipeline(llm_provider)
     app.state.pipeline = pipeline
 
+    es_config = InvestigationElasticsearchConfig(
+        hosts=settings.elasticsearch_hosts,
+        username=settings.elasticsearch_username,
+        password=settings.elasticsearch_password,
+    )
+    investigation_store = ElasticsearchInvestigationStore(config=es_config)
+    await investigation_store.start()
+    app.state.investigation_store = investigation_store
+
     factory: EventBusFactory | None = getattr(app.state, "_event_bus_factory", None)
     if factory is not None:
         event_bus = await factory(settings.event_bus_url)
         app.state.event_bus = event_bus
 
-        handler = _make_investigation_handler(pipeline, event_bus)
+        handler = _make_investigation_handler(pipeline, event_bus, investigation_store)
         await event_bus.subscribe(EventTopic.INVESTIGATION_REQUESTED, handler)
         logger.info("Subscribed to investigation.requested")
     else:
@@ -95,6 +111,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Service started", extra={"service": settings.service_name})
     yield
 
+    investigation_store: ElasticsearchInvestigationStore | None = getattr(app.state, "investigation_store", None)
+    if investigation_store is not None:
+        await investigation_store.close()
     event_bus: EventBus | None = getattr(app.state, "event_bus", None)
     if event_bus is not None:
         await event_bus.close()
@@ -105,9 +124,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def _make_investigation_handler(
     pipeline: InvestigationPipeline,
     event_bus: EventBus,
+    investigation_store: InvestigationStore | None = None,
 ) -> Callable[[Event], Awaitable[None]]:
     async def handler(event: Event) -> None:
-        await _handle_investigation_requested(event, pipeline, event_bus)
+        await _handle_investigation_requested(event, pipeline, event_bus, investigation_store)
 
     return handler
 

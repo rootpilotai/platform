@@ -92,7 +92,7 @@ class TestDefaultTemplates:
 
     def test_default_ilm_policy_has_all_phases(self) -> None:
         policy = _default_ilm_policy()
-        phases = policy["policy"]["phases"]
+        phases = policy["phases"]
         assert "hot" in phases
         assert "warm" in phases
         assert "cold" in phases
@@ -101,7 +101,7 @@ class TestDefaultTemplates:
 
     def test_ilm_delete_phase_age(self) -> None:
         policy = _default_ilm_policy()
-        assert policy["policy"]["phases"]["delete"]["min_age"] == "90d"
+        assert policy["phases"]["delete"]["min_age"] == "90d"
 
 
 class TestBuildQueryBody:

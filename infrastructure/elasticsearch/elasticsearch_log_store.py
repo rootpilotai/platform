@@ -84,33 +84,31 @@ def _default_index_template() -> dict:
 
 def _default_ilm_policy() -> dict:
     return {
-        "policy": {
-            "phases": {
-                "hot": {
-                    "min_age": "0ms",
-                    "actions": {
-                        "rollover": {"max_age": "1d", "max_primary_shard_size": "50gb"},
-                        "set_priority": {"priority": 100},
-                    },
+        "phases": {
+            "hot": {
+                "min_age": "0ms",
+                "actions": {
+                    "rollover": {"max_age": "1d", "max_primary_shard_size": "50gb"},
+                    "set_priority": {"priority": 100},
                 },
-                "warm": {
-                    "min_age": "7d",
-                    "actions": {
-                        "set_priority": {"priority": 50},
-                        "forcemerge": {"max_num_segments": 1},
-                    },
+            },
+            "warm": {
+                "min_age": "7d",
+                "actions": {
+                    "set_priority": {"priority": 50},
+                    "forcemerge": {"max_num_segments": 1},
                 },
-                "cold": {
-                    "min_age": "30d",
-                    "actions": {
-                        "set_priority": {"priority": 0},
-                    },
+            },
+            "cold": {
+                "min_age": "30d",
+                "actions": {
+                    "set_priority": {"priority": 0},
                 },
-                "delete": {
-                    "min_age": "90d",
-                    "actions": {
-                        "delete": {},
-                    },
+            },
+            "delete": {
+                "min_age": "90d",
+                "actions": {
+                    "delete": {},
                 },
             },
         },

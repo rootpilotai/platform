@@ -133,15 +133,21 @@ class ElasticsearchIncidentStore(IncidentStore):
         assert self._client is not None, "ElasticsearchIncidentStore not started"
 
         try:
-            response = await self._client.get(
+            response = await self._client.search(
                 index=f"{self._config.index_prefix}-*",
-                id=incident_id,
+                body={
+                    "size": 1,
+                    "query": {"term": {"incident_id": incident_id}},
+                },
             )
         except Exception:
             return None
 
-        source = response["_source"]
-        return IncidentContext.model_validate(source)
+        hits = response["hits"]["hits"]
+        if not hits:
+            return None
+
+        return IncidentContext.model_validate(hits[0]["_source"])
 
     async def search(self, filter: IncidentFilter) -> AsyncIterator[IncidentContext]:  # type: ignore[override,misc]
         assert self._client is not None, "ElasticsearchIncidentStore not started"
@@ -159,14 +165,11 @@ class ElasticsearchIncidentStore(IncidentStore):
         assert self._client is not None, "ElasticsearchIncidentStore not started"
 
         body = _build_query_body(filter)
-        body.pop("size", None)
-        body.pop("from", None)
-        body.pop("sort", None)
-        body["size"] = 0
+        query = body.get("query", {"match_all": {}})
 
         response = await self._client.count(
             index=f"{self._config.index_prefix}-*",
-            body=body,
+            query=query,
         )
         return response["count"]
 

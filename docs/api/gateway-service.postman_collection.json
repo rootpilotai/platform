@@ -1,0 +1,392 @@
+{
+  "info": {
+    "name": "RootPilot - gateway-service",
+    "description": "External platform access layer for RootPilot.\n\nBase URL: {{base_url}}\n\nAPI key authentication is required for all endpoints except `/health` and `/metrics`.\nSet `api_key` in collection variables to a valid key.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "rootpilot"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8004",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "local-dev-key",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has required fields\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"status\", \"incident_store\", \"investigation_store\", \"api_key_store\");",
+                  "    pm.expect(json.status).to.match(/^(ok|degraded)$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "GET /metrics",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has service field\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.service).to.eql(\"gateway-service\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["metrics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Incidents",
+      "item": [
+        {
+          "name": "GET /incidents",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body is paginated response\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\");",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "    pm.expect(json.limit).to.be.a(\"number\");",
+                  "    pm.expect(json.offset).to.be.a(\"number\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/incidents?limit=10&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["incidents"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /incidents with severity filter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Severity filter applied\", () => {",
+                  "    const json = pm.response.json();",
+                  "    json.items.forEach(item => {",
+                  "        pm.expect(item.severity).to.eql(\"CRITICAL\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/incidents?severity=CRITICAL&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["incidents"],
+              "query": [
+                { "key": "severity", "value": "CRITICAL" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /incidents/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has incident fields\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"incident_id\", \"primary_service\", \"severity\", \"title\", \"detected_at\", \"aggregated_at\", \"event_count\", \"service_count\", \"trace_count\", \"max_correlation_score\", \"service_list\");",
+                  "    pm.collectionVariables.set(\"incident_id\", json.incident_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/incidents/{{incident_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["incidents", "{{incident_id}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /incidents/{id} — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Body has detail\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Incident not found\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/incidents/non-existent-id",
+              "host": ["{{base_url}}"],
+              "path": ["incidents", "non-existent-id"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Investigations",
+      "item": [
+        {
+          "name": "GET /investigations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body is paginated response\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"items\", \"total\", \"limit\", \"offset\");",
+                  "    pm.expect(json.items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/investigations?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["investigations"],
+              "query": [
+                { "key": "limit", "value": "10" },
+                { "key": "offset", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /investigations/latest",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body has investigation fields\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.all.keys(\"investigation_id\", \"incident_id\", \"title\", \"root_causes\", \"progression\", \"remediation\", \"overall_confidence\", \"generated_at\", \"duration_ms\");",
+                  "    pm.expect(json.root_causes).to.be.an(\"array\");",
+                  "    pm.expect(json.progression).to.have.all.keys(\"sequence\", \"timeline_summary\", \"key_transitions\");",
+                  "    pm.collectionVariables.set(\"investigation_incident_id\", json.incident_id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/investigations/latest",
+              "host": ["{{base_url}}"],
+              "path": ["investigations", "latest"]
+            }
+          }
+        },
+        {
+          "name": "GET /investigations/{incident_id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body matches incident\", () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.incident_id).to.eql(pm.collectionVariables.get(\"investigation_incident_id\"));",
+                  "    pm.expect(json).to.have.all.keys(\"investigation_id\", \"incident_id\", \"title\", \"root_causes\", \"progression\", \"remediation\", \"overall_confidence\", \"generated_at\", \"duration_ms\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/investigations/{{investigation_incident_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["investigations", "{{investigation_incident_id}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /investigations/{id} — not found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Body has detail\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Investigation not found for this incident\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/investigations/non-existent-incident",
+              "host": ["{{base_url}}"],
+              "path": ["investigations", "non-existent-incident"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth error cases",
+      "item": [
+        {
+          "name": "Missing API key (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Body has detail\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Missing Authorization header\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/incidents",
+              "host": ["{{base_url}}"],
+              "path": ["incidents"]
+            }
+          }
+        },
+        {
+          "name": "Invalid API key (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Body has detail\", () => {",
+                  "    pm.expect(pm.response.json().detail).to.eql(\"Invalid API key\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer invalid-key-12345" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/incidents",
+              "host": ["{{base_url}}"],
+              "path": ["incidents"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

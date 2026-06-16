@@ -144,6 +144,26 @@ services:
     networks:
       - rootpilot-net
 
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+    container_name: rootpilot-gateway
+    ports:
+      - "8004:8004"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8004
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      API_KEYS: ${API_KEYS:-local-dev-key}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - rootpilot-net
+
 volumes:
   rootpilot-postgres-data:
   rootpilot-elasticsearch-data:

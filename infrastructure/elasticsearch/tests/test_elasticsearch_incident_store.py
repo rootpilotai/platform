@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from elasticsearch import NotFoundError
 
 from infrastructure.elasticsearch.elasticsearch_incident_store import (
     ElasticsearchIncidentStore,
@@ -450,7 +451,7 @@ class TestElasticsearchIncidentStore:
     async def test_bootstrap_creates_ilm_and_template(self, config: IncidentElasticsearchConfig) -> None:
         store = ElasticsearchIncidentStore(config=config)
         mock_client = AsyncMock()
-        mock_client.ilm.get_lifecycle = AsyncMock(return_value=False)
+        mock_client.ilm.get_lifecycle = AsyncMock(side_effect=NotFoundError("not found", meta=MagicMock(), body={}))
         mock_client.ilm.put_lifecycle = AsyncMock()
         mock_client.indices.exists_index_template = AsyncMock(return_value=False)
         mock_client.indices.put_index_template = AsyncMock()

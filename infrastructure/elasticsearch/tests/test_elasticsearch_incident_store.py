@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from elasticsearch import NotFoundError
 
 from infrastructure.elasticsearch.elasticsearch_incident_store import (
     ElasticsearchIncidentStore,
@@ -99,7 +100,7 @@ class TestDefaultTemplates:
 
     def test_default_ilm_policy_has_all_phases(self) -> None:
         policy = default_ilm_policy()
-        phases = policy["policy"]["phases"]
+        phases = policy["phases"]
         assert "hot" in phases
         assert "warm" in phases
         assert "cold" in phases
@@ -316,22 +317,28 @@ class TestElasticsearchIncidentStore:
     async def test_get_returns_context(self, config: IncidentElasticsearchConfig) -> None:
         store = ElasticsearchIncidentStore(config=config)
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(
+        mock_client.search = AsyncMock(
             return_value={
-                "_source": {
-                    "incident_id": "inc-1",
-                    "primary_service": "api",
-                    "severity": "CRITICAL",
-                    "title": "High error rate on api",
-                    "detected_at": "2026-06-14T12:00:00+00:00",
-                    "aggregated_at": "2026-06-14T12:00:00+00:00",
-                    "event_count": 10,
-                    "service_count": 2,
-                    "trace_count": 1,
-                    "correlation_groups": [],
-                    "ungrouped_events": [],
-                    "impacts": [],
-                    "trace_groups": [],
+                "hits": {
+                    "hits": [
+                        {
+                            "_source": {
+                                "incident_id": "inc-1",
+                                "primary_service": "api",
+                                "severity": "CRITICAL",
+                                "title": "High error rate on api",
+                                "detected_at": "2026-06-14T12:00:00+00:00",
+                                "aggregated_at": "2026-06-14T12:00:00+00:00",
+                                "event_count": 10,
+                                "service_count": 2,
+                                "trace_count": 1,
+                                "correlation_groups": [],
+                                "ungrouped_events": [],
+                                "impacts": [],
+                                "trace_groups": [],
+                            },
+                        },
+                    ],
                 },
             },
         )
@@ -342,11 +349,15 @@ class TestElasticsearchIncidentStore:
         assert result is not None
         assert result.incident_id == "inc-1"
         assert result.severity == "CRITICAL"
+        mock_client.search.assert_awaited_once_with(
+            index="rp-inc-*",
+            body={"size": 1, "query": {"term": {"incident_id": "inc-1"}}},
+        )
 
     async def test_get_returns_none_on_miss(self, config: IncidentElasticsearchConfig) -> None:
         store = ElasticsearchIncidentStore(config=config)
         mock_client = AsyncMock()
-        mock_client.get = AsyncMock(side_effect=Exception("not found"))
+        mock_client.search = AsyncMock(return_value={"hits": {"hits": []}})
         store._client = mock_client
 
         result = await store.get("inc-missing")
@@ -450,7 +461,7 @@ class TestElasticsearchIncidentStore:
     async def test_bootstrap_creates_ilm_and_template(self, config: IncidentElasticsearchConfig) -> None:
         store = ElasticsearchIncidentStore(config=config)
         mock_client = AsyncMock()
-        mock_client.ilm.get_lifecycle = AsyncMock(return_value=False)
+        mock_client.ilm.get_lifecycle = AsyncMock(side_effect=NotFoundError("not found", meta=MagicMock(), body={}))
         mock_client.ilm.put_lifecycle = AsyncMock()
         mock_client.indices.exists_index_template = AsyncMock(return_value=False)
         mock_client.indices.put_index_template = AsyncMock()

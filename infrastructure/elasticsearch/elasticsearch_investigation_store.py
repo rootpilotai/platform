@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 from uuid import uuid4
 
-from elasticsearch import AsyncElasticsearch
+from elasticsearch import AsyncElasticsearch, NotFoundError
 from pydantic import BaseModel, Field
 
 from infrastructure.elasticsearch.investigation_index_strategy import (
@@ -98,10 +98,11 @@ class ElasticsearchInvestigationStore(InvestigationStore):
         """Create ILM policy and index template if they don't exist."""
         assert self._client is not None
 
-        ilm_exists = await self._client.ilm.get_lifecycle(
-            name=self._config.ilm_policy_name,
-        )
-        if not ilm_exists:
+        try:
+            await self._client.ilm.get_lifecycle(
+                name=self._config.ilm_policy_name,
+            )
+        except NotFoundError:
             await self._client.ilm.put_lifecycle(
                 name=self._config.ilm_policy_name,
                 policy=default_ilm_policy(),

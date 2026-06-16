@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from elasticsearch import NotFoundError
 
 from infrastructure.elasticsearch.elasticsearch_log_store import (
     ElasticsearchConfig,
@@ -91,7 +92,7 @@ class TestDefaultTemplates:
 
     def test_default_ilm_policy_has_all_phases(self) -> None:
         policy = _default_ilm_policy()
-        phases = policy["policy"]["phases"]
+        phases = policy["phases"]
         assert "hot" in phases
         assert "warm" in phases
         assert "cold" in phases
@@ -100,7 +101,7 @@ class TestDefaultTemplates:
 
     def test_ilm_delete_phase_age(self) -> None:
         policy = _default_ilm_policy()
-        assert policy["policy"]["phases"]["delete"]["min_age"] == "90d"
+        assert policy["phases"]["delete"]["min_age"] == "90d"
 
 
 class TestBuildQueryBody:
@@ -344,7 +345,7 @@ class TestElasticsearchLogStore:
     async def test_bootstrap_creates_ilm_and_template(self, config: ElasticsearchConfig) -> None:
         store = ElasticsearchLogStore(config=config)
         mock_client = AsyncMock()
-        mock_client.ilm.get_lifecycle = AsyncMock(return_value=False)
+        mock_client.ilm.get_lifecycle = AsyncMock(side_effect=NotFoundError("not found", meta=MagicMock(), body={}))
         mock_client.ilm.put_lifecycle = AsyncMock()
         mock_client.indices.exists_index_template = AsyncMock(return_value=False)
         mock_client.indices.put_index_template = AsyncMock()

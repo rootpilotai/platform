@@ -1,4 +1,4 @@
-# ADR-002: RabbitMQ as Initial Messaging Provider
+# ADR-009: RabbitMQ as Initial Messaging Provider
 
 ## Status
 

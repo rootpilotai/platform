@@ -13,6 +13,7 @@ from app.config import CorrelationServiceSettings
 from app.main import create_app
 
 from shared.contracts import EventBus
+from shared.contracts.interfaces.incident_store import IncidentStore
 from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.timeline.services import TimelineReconstructor
 
@@ -39,6 +40,16 @@ def mock_event_bus() -> MagicMock:
     bus.close = AsyncMock()
     bus.subscribe = AsyncMock()
     return bus
+
+
+@pytest.fixture
+def mock_incident_store() -> MagicMock:
+    store = MagicMock(spec=IncidentStore)
+    store.store = AsyncMock()
+    store.start = AsyncMock()
+    store.close = AsyncMock()
+    store.health = AsyncMock(return_value=True)
+    return store
 
 
 @pytest.fixture

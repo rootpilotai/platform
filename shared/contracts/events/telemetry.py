@@ -4,6 +4,8 @@ from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
+from shared.contracts.events.enums import Severity
+
 
 class TelemetryEvent(BaseModel):
     model_version: str = "1.0"
@@ -16,3 +18,8 @@ class TelemetryEvent(BaseModel):
         default_factory=lambda: datetime.now(UTC),
         description="When the measurement was taken (UTC).",
     )
+    trace_id: str | None = Field(default=None, description="Distributed trace identifier.")
+    span_id: str | None = Field(default=None, description="Span identifier within the trace (16 hex chars).")
+    parent_span_id: str | None = Field(default=None, description="Parent span identifier, if this span is a child.")
+    request_id: str | None = Field(default=None, description="Correlated request identifier.")
+    severity: Severity | None = Field(default=None, description="Severity level if applicable.")

@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from app.schemas import IngestRequest
 from shared.contracts import Event, EventBus, ServiceName, TelemetryEvent
 from shared.contracts.events import EventTopic
+from shared.contracts.events.enums import Severity
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ class IngestionService:
 
     async def process_telemetry(self, request: IngestRequest) -> str:
         timestamp = self._parse_timestamp(request.timestamp)
+        severity = self._parse_severity(request.severity)
         telemetry = TelemetryEvent(
             metric=request.metric,
             value=request.value,
@@ -21,6 +23,11 @@ class IngestionService:
             tags=request.tags,
             source=request.source,
             timestamp=timestamp,
+            trace_id=request.trace_id,
+            span_id=request.span_id,
+            parent_span_id=request.parent_span_id,
+            request_id=request.request_id,
+            severity=severity,
         )
         envelope = Event(
             source=ServiceName.INGESTION,
@@ -43,3 +50,13 @@ class IngestionService:
         except ValueError:
             logger.warning("Invalid timestamp format, falling back to now", extra={"raw": raw})
             return datetime.now(UTC)
+
+    @staticmethod
+    def _parse_severity(raw: str | None) -> Severity | None:
+        if raw is None:
+            return None
+        try:
+            return Severity(raw.lower())
+        except ValueError:
+            logger.warning("Invalid severity value, ignoring", extra={"raw": raw})
+            return None

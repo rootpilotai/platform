@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.config import IngestionServiceSettings
-from app.routers import health, ingest
+from app.config import OtelAdapterSettings
+from app.routers import health, otlp
+from app.services.otel_normalizer import OtelNormalizer
 from shared.config import BaseAppSettings, load_settings
 from shared.contracts import EventBus, ObservabilityProvider
 
@@ -16,6 +17,7 @@ ObservabilityFactory = Callable[[BaseAppSettings], ObservabilityProvider]
 
 
 def _noop_observability(_settings: BaseAppSettings) -> ObservabilityProvider:
+    """Return a no-op provider when nothing is configured."""
     from shared.contracts.interfaces.observability import ObservabilityProvider
 
     class _NoopProvider(ObservabilityProvider):
@@ -27,7 +29,7 @@ def _noop_observability(_settings: BaseAppSettings) -> ObservabilityProvider:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings: IngestionServiceSettings = load_settings(IngestionServiceSettings)
+    settings: OtelAdapterSettings = load_settings(OtelAdapterSettings)
     app.state.settings = settings
 
     logging.basicConfig(
@@ -41,13 +43,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     factory: EventBusFactory | None = getattr(app.state, "_event_bus_factory", None)
     if factory is not None:
-        try:
-            event_bus = await factory(settings.event_bus_url)
-            app.state.event_bus = event_bus
-        except Exception:
-            logger.warning("Event bus unavailable at startup — will retry in background")
+        event_bus = await factory(settings.event_bus_url)
+        app.state.event_bus = event_bus
     else:
         logger.warning("No event bus factory configured — events will be logged but not published")
+
+    normalizer = OtelNormalizer(
+        source=settings.source_name,
+        latency_threshold_ms=settings.anomaly_latency_threshold_ms,
+    )
+    app.state.normalizer = normalizer
 
     logger.info("Service started", extra={"service": settings.service_name})
     yield
@@ -63,14 +68,14 @@ def create_app(
     observability_factory: ObservabilityFactory | None = None,
 ) -> FastAPI:
     app = FastAPI(
-        title="ingestion-service",
+        title="otel-adapter-service",
         version="0.1.0",
         lifespan=lifespan,
     )
     app.state._event_bus_factory = event_bus_factory
     app.state._observability_factory = observability_factory
     app.include_router(health.router)
-    app.include_router(ingest.router)
+    app.include_router(otlp.router)
     return app
 
 

@@ -12,6 +12,7 @@ from shared.contracts.interfaces.investigation_store import InvestigationFilter,
 from shared.contracts.interfaces.llm_provider import LLMMessage, LLMProvider, LLMResponse
 from shared.contracts.interfaces.log_store import LogEntry, LogFilter, LogStore, SortOrder
 from shared.contracts.interfaces.notification_provider import NotificationProvider
+from shared.contracts.interfaces.observability import ObservabilityProvider
 
 __all__ = [
     "ApiKeyStore",
@@ -29,5 +30,6 @@ __all__ = [
     "LogFilter",
     "LogStore",
     "NotificationProvider",
+    "ObservabilityProvider",
     "SortOrder",
 ]

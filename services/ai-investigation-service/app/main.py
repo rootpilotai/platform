@@ -7,19 +7,30 @@ from fastapi import FastAPI
 from app.config import InvestigationServiceConfig
 from app.pipeline import InvestigationPipeline
 from app.routers import health, investigate
-from infrastructure.elasticsearch import ElasticsearchInvestigationStore
-from infrastructure.elasticsearch.elasticsearch_investigation_store import InvestigationElasticsearchConfig
-from infrastructure.monitoring.otel import setup_tracing
-from infrastructure.openai.openai_llm_provider import OpenAILLMProvider, OpenAIProviderConfig
-from shared.config import load_settings
+from shared.config import BaseAppSettings, load_settings
 from shared.contracts import Event, EventBus
 from shared.contracts.events import EventTopic, InvestigationCompletedEvent, InvestigationRequestedEvent, ServiceName
 from shared.contracts.interfaces.investigation_store import InvestigationStore
+from shared.contracts.interfaces.llm_provider import LLMProvider
+from shared.contracts.interfaces.observability import ObservabilityProvider
 from shared.domain.incident.context.models import IncidentContext
 
 logger = logging.getLogger(__name__)
 
 EventBusFactory = Callable[[str], Awaitable[EventBus]]
+InvestigationStoreFactory = Callable[[InvestigationServiceConfig], Awaitable[InvestigationStore]]
+LLMProviderFactory = Callable[[], Awaitable[LLMProvider]]
+ObservabilityFactory = Callable[[BaseAppSettings], ObservabilityProvider]
+
+
+def _noop_observability(_settings: BaseAppSettings) -> ObservabilityProvider:
+    from shared.contracts.interfaces.observability import ObservabilityProvider
+
+    class _NoopProvider(ObservabilityProvider):
+        def setup(self, app: FastAPI) -> None:
+            logger.info("No observability provider configured — tracing disabled")
+
+    return _NoopProvider()
 
 
 async def _handle_investigation_requested(
@@ -80,22 +91,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
 
-    setup_tracing(app, settings)
+    observability_factory: ObservabilityFactory | None = getattr(app.state, "_observability_factory", None)
+    if observability_factory is not None:
+        provider = observability_factory(settings)
+        provider.setup(app)
+    else:
+        _noop_observability(settings).setup(app)
 
-    llm_provider = OpenAILLMProvider(OpenAIProviderConfig())
-    await llm_provider.start()
-    app.state.llm = llm_provider
-    pipeline = InvestigationPipeline(llm_provider)
-    app.state.pipeline = pipeline
+    llm_factory: LLMProviderFactory | None = getattr(app.state, "_llm_provider_factory", None)
+    pipeline = None
+    if llm_factory is not None:
+        llm_provider = await llm_factory()
+        app.state.llm = llm_provider
+        pipeline = InvestigationPipeline(llm_provider)
+        app.state.pipeline = pipeline
 
-    es_config = InvestigationElasticsearchConfig(
-        hosts=settings.elasticsearch_hosts,
-        username=settings.elasticsearch_username,
-        password=settings.elasticsearch_password,
+    investigation_store = None
+    investigation_store_factory: InvestigationStoreFactory | None = getattr(
+        app.state, "_investigation_store_factory", None
     )
-    investigation_store = ElasticsearchInvestigationStore(config=es_config)
-    await investigation_store.start()
-    app.state.investigation_store = investigation_store
+    if investigation_store_factory is not None:
+        investigation_store = await investigation_store_factory(settings)
+        app.state.investigation_store = investigation_store
 
     factory: EventBusFactory | None = getattr(app.state, "_event_bus_factory", None)
     if factory is not None:
@@ -111,13 +128,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Service started", extra={"service": settings.service_name})
     yield
 
-    investigation_store: ElasticsearchInvestigationStore | None = getattr(app.state, "investigation_store", None)
+    investigation_store: InvestigationStore | None = getattr(app.state, "investigation_store", None)
     if investigation_store is not None:
         await investigation_store.close()
     event_bus: EventBus | None = getattr(app.state, "event_bus", None)
     if event_bus is not None:
         await event_bus.close()
-    await llm_provider.close()
+    llm_provider: LLMProvider | None = getattr(app.state, "llm", None)
+    if llm_provider is not None:
+        await llm_provider.close()
     logger.info("Service stopped", extra={"service": settings.service_name})
 
 
@@ -132,13 +151,21 @@ def _make_investigation_handler(
     return handler
 
 
-def create_app(event_bus_factory: EventBusFactory | None = None) -> FastAPI:
+def create_app(
+    event_bus_factory: EventBusFactory | None = None,
+    investigation_store_factory: InvestigationStoreFactory | None = None,
+    llm_provider_factory: LLMProviderFactory | None = None,
+    observability_factory: ObservabilityFactory | None = None,
+) -> FastAPI:
     app = FastAPI(
         title="ai-investigation-service",
         version="0.1.0",
         lifespan=lifespan,
     )
     app.state._event_bus_factory = event_bus_factory
+    app.state._investigation_store_factory = investigation_store_factory
+    app.state._llm_provider_factory = llm_provider_factory
+    app.state._observability_factory = observability_factory
     app.include_router(health.router)
     app.include_router(investigate.router)
     return app

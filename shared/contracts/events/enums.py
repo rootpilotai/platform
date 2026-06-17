@@ -18,6 +18,7 @@ class ServiceName(StrEnum):
     INCIDENT = "incident-service"
     GATEWAY = "gateway-service"
     NOTIFICATION = "notification-service"
+    OTEL_ADAPTER = "otel-adapter-service"
 
 
 class EventTopic(StrEnum):

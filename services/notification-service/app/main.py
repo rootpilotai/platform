@@ -9,9 +9,8 @@ from fastapi import FastAPI
 from app.config import NotificationServiceSettings
 from app.routers import health
 from app.services.provider_router import NotificationRouter
-from infrastructure.monitoring.otel import setup_tracing
-from shared.config import load_settings
-from shared.contracts import Event, EventBus
+from shared.config import BaseAppSettings, load_settings
+from shared.contracts import Event, EventBus, ObservabilityProvider
 from shared.contracts.events import EventTopic, InvestigationCompletedEvent
 from shared.contracts.schemas.notification import NotificationMessage
 
@@ -20,6 +19,8 @@ logger = logging.getLogger(__name__)
 DEAD_LETTER_TOPIC = EventTopic.NOTIFICATION_DEAD_LETTER
 
 EventBusFactory = Callable[[str], Awaitable[EventBus]]
+NotificationRouterFactory = Callable[[], NotificationRouter]
+ObservabilityFactory = Callable[[BaseAppSettings], ObservabilityProvider]
 
 
 def _build_notification(event: Event) -> NotificationMessage | None:
@@ -59,6 +60,16 @@ def _build_notification(event: Event) -> NotificationMessage | None:
     )
 
 
+def _noop_observability(_settings: BaseAppSettings) -> ObservabilityProvider:
+    from shared.contracts.interfaces.observability import ObservabilityProvider
+
+    class _NoopProvider(ObservabilityProvider):
+        def setup(self, app: FastAPI) -> None:
+            logger.info("No observability provider configured — tracing disabled")
+
+    return _NoopProvider()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: NotificationServiceSettings = load_settings(NotificationServiceSettings)
@@ -69,7 +80,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
 
-    setup_tracing(app, settings)
+    obs_factory = getattr(app.state, "_observability_factory", None)
+    provider = obs_factory(settings) if obs_factory else _noop_observability(settings)
+    provider.setup(app)
 
     factory: EventBusFactory | None = getattr(app.state, "_event_bus_factory", None)
     if factory is not None:
@@ -80,9 +93,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
         return
 
-    router = NotificationRouter(settings)
-    await router.start_all()
+    router_factory = getattr(app.state, "_notification_router_factory", None)
+    if router_factory is None:
+        logger.warning("No notification router factory configured")
+        yield
+        return
+
+    router = router_factory()
     app.state.router = router
+    await router.start_all()
 
     async def handle_investigation_completed(event: Event) -> None:
         message = _build_notification(event)
@@ -113,18 +132,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Service started", extra={"service": settings.service_name})
     yield
 
-    await router.stop_all()
+    router = getattr(app.state, "router", None)
+    if router is not None:
+        await router.stop_all()
     await event_bus.close()
     logger.info("Service stopped", extra={"service": settings.service_name})
 
 
-def create_app(event_bus_factory: EventBusFactory | None = None) -> FastAPI:
+def create_app(
+    event_bus_factory: EventBusFactory | None = None,
+    notification_router_factory: NotificationRouterFactory | None = None,
+    observability_factory: ObservabilityFactory | None = None,
+) -> FastAPI:
     app = FastAPI(
         title="notification-service",
         version="0.1.0",
         lifespan=lifespan,
     )
     app.state._event_bus_factory = event_bus_factory
+    app.state._notification_router_factory = notification_router_factory
+    app.state._observability_factory = observability_factory
     app.include_router(health.router)
     return app
 

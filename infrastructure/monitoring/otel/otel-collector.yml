@@ -13,6 +13,11 @@ exporters:
     endpoint: "localhost:4317"
     tls:
       insecure: true
+  otlphttp/rootpilot:
+    endpoint: "http://otel-adapter-service:8004"
+    tls:
+      insecure: true
+    encoding: protobuf
 
 processors:
   batch:
@@ -24,12 +29,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [debug, otlphttp/rootpilot]
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [debug, otlphttp/rootpilot]
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [debug, otlphttp/rootpilot]

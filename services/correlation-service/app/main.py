@@ -7,18 +7,29 @@ from fastapi import FastAPI
 from app.config import CorrelationServiceSettings
 from app.routers import correlation, health, timeline
 from app.services.connection_manager import ConnectionManager
-from infrastructure.elasticsearch import ElasticsearchIncidentStore
-from infrastructure.elasticsearch.elasticsearch_incident_store import IncidentElasticsearchConfig
-from infrastructure.monitoring.otel import OpenTelemetryMiddleware, setup_tracing
-from shared.config import load_settings
+from shared.config import BaseAppSettings, load_settings
 from shared.contracts import EventBus
 from shared.contracts.events import EventTopic
+from shared.contracts.interfaces.incident_store import IncidentStore
+from shared.contracts.interfaces.observability import ObservabilityProvider
 from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.timeline.services import TimelineReconstructor
 
 logger = logging.getLogger(__name__)
 
 EventBusFactory = Callable[[str], Awaitable[EventBus]]
+IncidentStoreFactory = Callable[[CorrelationServiceSettings], Awaitable[IncidentStore]]
+ObservabilityFactory = Callable[[BaseAppSettings], ObservabilityProvider]
+
+
+def _noop_observability(_settings: BaseAppSettings) -> ObservabilityProvider:
+    from shared.contracts.interfaces.observability import ObservabilityProvider
+
+    class _NoopProvider(ObservabilityProvider):
+        def setup(self, app: FastAPI) -> None:
+            logger.info("No observability provider configured — tracing disabled")
+
+    return _NoopProvider()
 
 
 @asynccontextmanager
@@ -31,7 +42,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
 
-    setup_tracing(app, settings)
+    observability_factory: ObservabilityFactory | None = getattr(app.state, "_observability_factory", None)
+    if observability_factory is not None:
+        observability = observability_factory(settings)
+        observability.setup(app)
 
     reconstructor = TimelineReconstructor(
         window_duration_seconds=settings.timeline_window_duration,
@@ -41,14 +55,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.reconstructor = reconstructor
     app.state.engine = engine
 
-    es_config = IncidentElasticsearchConfig(
-        hosts=settings.elasticsearch_hosts,
-        username=settings.elasticsearch_username,
-        password=settings.elasticsearch_password,
-    )
-    incident_store = ElasticsearchIncidentStore(config=es_config)
-    await incident_store.start()
-    app.state.incident_store = incident_store
+    incident_store_factory: IncidentStoreFactory | None = getattr(app.state, "_incident_store_factory", None)
+    if incident_store_factory is not None:
+        incident_store = await incident_store_factory(settings)
+        app.state.incident_store = incident_store
 
     factory: EventBusFactory | None = getattr(app.state, "_event_bus_factory", None)
     if factory is not None:
@@ -59,7 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             engine=engine,
             reconstructor=reconstructor,
             event_bus=event_bus,
-            incident_store=incident_store,
+            incident_store=getattr(app.state, "incident_store", None),
             window_seconds=settings.correlation_window_seconds,
             min_events=settings.correlation_min_events,
             min_score=settings.correlation_min_score,
@@ -80,7 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Service started", extra={"service": settings.service_name})
     yield
 
-    incident_store: ElasticsearchIncidentStore | None = getattr(app.state, "incident_store", None)
+    incident_store: IncidentStore | None = getattr(app.state, "incident_store", None)
     if incident_store is not None:
         await incident_store.close()
     manager: ConnectionManager | None = getattr(app.state, "connection_manager", None)
@@ -92,14 +102,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Service stopped", extra={"service": settings.service_name})
 
 
-def create_app(event_bus_factory: EventBusFactory | None = None) -> FastAPI:
+def create_app(
+    event_bus_factory: EventBusFactory | None = None,
+    incident_store_factory: IncidentStoreFactory | None = None,
+    observability_factory: ObservabilityFactory | None = None,
+) -> FastAPI:
     app = FastAPI(
         title="correlation-service",
         version="0.1.0",
         lifespan=lifespan,
     )
     app.state._event_bus_factory = event_bus_factory
-    app.add_middleware(OpenTelemetryMiddleware)
+    app.state._incident_store_factory = incident_store_factory
+    app.state._observability_factory = observability_factory
     app.include_router(health.router)
     app.include_router(timeline.router)
     app.include_router(correlation.router)

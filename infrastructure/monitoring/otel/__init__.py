@@ -5,6 +5,9 @@ from infrastructure.monitoring.otel.instrumentation import (
     get_trace_context,
     setup_tracing,
 )
+from infrastructure.monitoring.otel.otel_observability_provider import (
+    OTelObservabilityProvider,
+)
 from infrastructure.monitoring.otel.otel_tracer_provider import (
     OTelSpan,
     OTelTracer,
@@ -12,6 +15,7 @@ from infrastructure.monitoring.otel.otel_tracer_provider import (
 )
 
 __all__ = [
+    "OTelObservabilityProvider",
     "OTelSpan",
     "OTelTracer",
     "OTelTracerProvider",

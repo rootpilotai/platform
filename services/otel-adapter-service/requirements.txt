@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+aio-pika>=9.5,<10
+opentelemetry-proto>=1.28,<2
+protobuf>=5.27,<6
+opentelemetry-api>=1.28,<2
+opentelemetry-sdk>=1.28,<2
+opentelemetry-exporter-otlp-proto-http>=1.28,<2

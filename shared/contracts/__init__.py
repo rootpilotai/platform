@@ -29,6 +29,7 @@ _LAZY_INTERFACES: dict[str, str] = {
     "LogFilter": "shared.contracts.interfaces.log_store",
     "LogStore": "shared.contracts.interfaces.log_store",
     "NotificationProvider": "shared.contracts.interfaces.notification_provider",
+    "ObservabilityProvider": "shared.contracts.interfaces.observability",
 }
 
 
@@ -60,6 +61,7 @@ __all__ = [
     "LogStore",
     "NotificationMessage",
     "NotificationProvider",
+    "ObservabilityProvider",
     "ServiceName",
     "Severity",
     "TelemetryEvent",

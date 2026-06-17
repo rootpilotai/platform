@@ -31,6 +31,8 @@ class ConnectionManager:
         min_events: int = 3,
         min_score: float = 0.2,
         incident_severity: str = "ERROR",
+        max_buffer_size: int = 1000,
+        min_correlation_interval: float = 60.0,
     ) -> None:
         self._engine = engine
         self._reconstructor = reconstructor
@@ -40,12 +42,16 @@ class ConnectionManager:
         self._min_events = min_events
         self._min_score = min_score
         self._incident_severity = incident_severity
+        self._max_buffer_size = max_buffer_size
+        self._min_correlation_interval = min_correlation_interval
         self._telemetry_events: list[TelemetryEvent] = []
+        self._last_correlation_time: datetime | None = None
 
     async def handle_telemetry_event(self, event: Event) -> None:
         telemetry = TelemetryEvent(**event.payload)
         self._telemetry_events.append(telemetry)
         self._prune_old_events()
+        self._enforce_max_buffer()
 
         logger.debug(
             "Buffered telemetry event",
@@ -55,9 +61,26 @@ class ConnectionManager:
         if len(self._telemetry_events) < self._min_events:
             return
 
+        if not self._should_correlate():
+            return
+
         await self._run_correlation()
 
+    def _should_correlate(self) -> bool:
+        if self._last_correlation_time is None:
+            return True
+        elapsed = (datetime.now(UTC) - self._last_correlation_time).total_seconds()
+        if elapsed < self._min_correlation_interval:
+            logger.debug(
+                "Correlation debounced — last run %.0fs ago (min interval %.0fs)",
+                elapsed,
+                self._min_correlation_interval,
+            )
+            return False
+        return True
+
     async def _run_correlation(self) -> None:
+        self._last_correlation_time = datetime.now(UTC)
         timeline_events = self._reconstructor.telemetry_to_timeline_events(self._telemetry_events)
         result = await self._engine.correlate(timeline_events, min_score=self._min_score)
 
@@ -105,12 +128,25 @@ class ConnectionManager:
         await self._event_bus.publish(outbound)
         logger.info("Published investigation.requested", extra={"incident_id": incident_id})
 
+        self._telemetry_events.clear()
+        self._last_correlation_time = datetime.now(UTC)
+
     def _prune_old_events(self) -> None:
-        cutoff = datetime.now(UTC) - timedelta(seconds=self._window_seconds)
+        if not self._telemetry_events:
+            return
+        newest = max(ev.timestamp for ev in self._telemetry_events)
+        cutoff = newest - timedelta(seconds=self._window_seconds)
         self._telemetry_events = [ev for ev in self._telemetry_events if ev.timestamp >= cutoff]
+
+    def _enforce_max_buffer(self) -> None:
+        if len(self._telemetry_events) > self._max_buffer_size:
+            excess = len(self._telemetry_events) - self._max_buffer_size
+            logger.warning("Buffer exceeded max size, dropping %d oldest event(s)", excess)
+            self._telemetry_events = self._telemetry_events[excess:]
 
     async def close(self) -> None:
         self._telemetry_events.clear()
+        self._last_correlation_time = None
 
 
 def _build_aggregator(builders: list[ContextBuilder]):

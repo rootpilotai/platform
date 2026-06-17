@@ -32,6 +32,16 @@ class CorrelationServiceSettings(BaseAppSettings):
         le=1.0,
         description="Minimum composite score threshold for correlation groups.",
     )
+    correlation_max_buffer_size: int = Field(
+        default=1000,
+        ge=1,
+        description="Maximum number of telemetry events in the correlation buffer.",
+    )
+    correlation_min_interval: float = Field(
+        default=60.0,
+        ge=0.0,
+        description="Minimum seconds between correlation runs (debounce).",
+    )
     correlation_incident_severity: str = Field(
         default="ERROR",
         description="Default severity assigned to incidents created by the correlation pipeline.",

@@ -64,6 +64,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             min_events=settings.correlation_min_events,
             min_score=settings.correlation_min_score,
             incident_severity=settings.correlation_incident_severity,
+            max_buffer_size=settings.correlation_max_buffer_size,
+            min_correlation_interval=settings.correlation_min_interval,
         )
         app.state.connection_manager = manager
 

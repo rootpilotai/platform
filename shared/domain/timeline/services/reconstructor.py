@@ -81,6 +81,11 @@ class TimelineReconstructor:
             service_name=event.source,
             title=f"{category.value}: {event.metric}={event.value}",
             description=f"{event.metric} recorded at {event.value} {event.unit or ''}",
+            trace_id=event.trace_id,
+            span_id=event.span_id,
+            parent_span_id=event.parent_span_id,
+            request_id=event.request_id,
+            severity=event.severity,
             tags=event.tags,
             metadata={"metric": event.metric, "unit": event.unit or "", "value": str(event.value)},
         )

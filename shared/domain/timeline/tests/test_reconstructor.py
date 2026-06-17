@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from shared.contracts.events.enums import Severity
 from shared.contracts.events.telemetry import TelemetryEvent
 from shared.domain.timeline.enums import TimelineEventCategory, TimelineEventSource
 from shared.domain.timeline.models import TimelineEvent
@@ -120,6 +121,38 @@ class TestWindowGrouping:
 
 
 class TestTelemetryConversion:
+    async def test_trace_context_fields_preserved(self) -> None:
+        r = TimelineReconstructor()
+        telemetry = TelemetryEvent(
+            metric="error.rate",
+            value=0.15,
+            source="api",
+            trace_id="abc123",
+            span_id="def456",
+            parent_span_id="parent789",
+            request_id="req-001",
+            severity=Severity.ERROR,
+        )
+        events = r.telemetry_to_timeline_events([telemetry])
+        assert len(events) == 1
+        ev = events[0]
+        assert ev.trace_id == "abc123"
+        assert ev.span_id == "def456"
+        assert ev.parent_span_id == "parent789"
+        assert ev.request_id == "req-001"
+        assert ev.severity == "error"
+
+    async def test_trace_fields_default_to_none(self) -> None:
+        r = TimelineReconstructor()
+        telemetry = TelemetryEvent(metric="cpu.usage", value=95.0, source="api")
+        events = r.telemetry_to_timeline_events([telemetry])
+        ev = events[0]
+        assert ev.trace_id is None
+        assert ev.span_id is None
+        assert ev.parent_span_id is None
+        assert ev.request_id is None
+        assert ev.severity is None
+
     async def test_error_metric_classified_as_failure(self) -> None:
         r = TimelineReconstructor()
         telemetry = TelemetryEvent(metric="error.rate", value=0.15, source="api")

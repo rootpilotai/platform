@@ -8,6 +8,11 @@ class IngestRequest(BaseModel):
     tags: dict[str, str] = {}
     source: str
     timestamp: str | None = None
+    trace_id: str | None = None
+    span_id: str | None = None
+    parent_span_id: str | None = None
+    request_id: str | None = None
+    severity: str | None = None
 
 
 class IngestResponse(BaseModel):

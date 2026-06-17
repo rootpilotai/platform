@@ -52,6 +52,39 @@ class TestIngestEndpoint:
         response = await client.post("/api/v1/ingest", json=payload)
         assert response.status_code == 422
 
+    async def test_ingest_includes_trace_context(self, client: AsyncClient, mock_event_bus) -> None:
+        payload = {
+            "metric": "error.rate",
+            "value": 0.15,
+            "source": "api",
+            "trace_id": "abc123",
+            "span_id": "def456",
+            "parent_span_id": "parent789",
+            "request_id": "req-001",
+            "severity": "error",
+        }
+        response = await client.post("/api/v1/ingest", json=payload)
+        assert response.status_code == 202
+        call_args = mock_event_bus.publish.await_args[0][0]
+        pl = call_args.payload
+        assert pl["trace_id"] == "abc123"
+        assert pl["span_id"] == "def456"
+        assert pl["parent_span_id"] == "parent789"
+        assert pl["request_id"] == "req-001"
+        assert pl["severity"] == "error"
+
+    async def test_ingest_trace_fields_default_to_none(self, client: AsyncClient, mock_event_bus) -> None:
+        payload = {"metric": "cpu.usage", "value": 95.0, "source": "api"}
+        response = await client.post("/api/v1/ingest", json=payload)
+        assert response.status_code == 202
+        call_args = mock_event_bus.publish.await_args[0][0]
+        pl = call_args.payload
+        assert pl["trace_id"] is None
+        assert pl["span_id"] is None
+        assert pl["parent_span_id"] is None
+        assert pl["request_id"] is None
+        assert pl["severity"] is None
+
     async def test_ingest_accepts_optional_timestamp(self, client: AsyncClient) -> None:
         payload = {
             "metric": "latency",

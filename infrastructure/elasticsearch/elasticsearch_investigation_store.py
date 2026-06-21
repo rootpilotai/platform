@@ -188,11 +188,10 @@ class ElasticsearchInvestigationStore(InvestigationStore):
         body.pop("size", None)
         body.pop("from", None)
         body.pop("sort", None)
-        body["size"] = 0
 
         response = await self._client.count(
             index=f"{self._config.index_prefix}-*",
-            body=body,
+            query=body.get("query", {"match_all": {}}),
         )
         return response["count"]
 

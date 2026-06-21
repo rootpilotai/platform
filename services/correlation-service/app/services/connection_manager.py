@@ -9,9 +9,11 @@ from shared.contracts.events import EventTopic, InvestigationRequestedEvent, Ser
 from shared.contracts.events.telemetry import TelemetryEvent
 from shared.contracts.interfaces.incident_store import IncidentStore
 from shared.domain.correlation.engine import CorrelationEngine
+from shared.domain.graph.store import GraphStore
 from shared.domain.incident.context.builders import (
     ContextBuilder,
     CorrelationBuilder,
+    ImpactBuilder,
     TimelineBuilder,
     TraceBuilder,
 )
@@ -27,6 +29,7 @@ class ConnectionManager:
         reconstructor: TimelineReconstructor,
         event_bus: EventBus,
         incident_store: IncidentStore | None = None,
+        graph_store: GraphStore | None = None,
         window_seconds: int = 300,
         min_events: int = 3,
         min_score: float = 0.2,
@@ -38,6 +41,7 @@ class ConnectionManager:
         self._reconstructor = reconstructor
         self._event_bus = event_bus
         self._incident_store = incident_store
+        self._graph_store = graph_store
         self._window_seconds = window_seconds
         self._min_events = min_events
         self._min_score = min_score
@@ -97,11 +101,21 @@ class ConnectionManager:
         services = {ev.source for ev in self._telemetry_events}
         primary_service = next(iter(services)) if services else "unknown"
 
+        reachable_services: set[str] = set()
+        for ev in self._telemetry_events:
+            seen = ev.tags.get("_seen_sources", "")
+            if seen:
+                reachable_services.update(s.strip() for s in seen.split(",") if s.strip())
+        # A service that had failure/error events is NOT reachable — it's actively failing
+        reachable_services -= services
+
         builders: list[ContextBuilder] = [
             TimelineBuilder(self._reconstructor),
             CorrelationBuilder(self._engine),
             TraceBuilder(),
         ]
+        if self._graph_store is not None:
+            builders.append(ImpactBuilder(self._graph_store))
         aggregator = _build_aggregator(builders)
         context = await aggregator.aggregate(
             incident_id=incident_id,
@@ -110,6 +124,7 @@ class ConnectionManager:
             severity=self._incident_severity,
             title=f"Correlated incident detected across {len(services)} service(s)",
             detected_at=datetime.now(UTC),
+            reachable_services=reachable_services,
         )
 
         if self._incident_store is not None:

@@ -16,24 +16,24 @@ services:
     networks:
       - rootpilot-net
 
-  postgres:
-    image: postgres:16
-    container_name: rootpilot-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: rootpilot
-      POSTGRES_PASSWORD: rootpilot
-      POSTGRES_DB: rootpilot
-    volumes:
-      - rootpilot-postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rootpilot -d rootpilot"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - rootpilot-net
+  # postgres:
+  #   image: postgres:16
+  #   container_name: rootpilot-postgres
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_USER: rootpilot
+  #     POSTGRES_PASSWORD: rootpilot
+  #     POSTGRES_DB: rootpilot
+  #   volumes:
+  #     - rootpilot-postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U rootpilot -d rootpilot"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - rootpilot-net
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
@@ -150,11 +150,11 @@ services:
     networks:
       - rootpilot-net
 
-  gateway-service:
+  otel-adapter-service:
     build:
       context: .
-      dockerfile: services/gateway-service/Dockerfile
-    container_name: rootpilot-gateway
+      dockerfile: services/otel-adapter-service/Dockerfile
+    container_name: rootpilot-otel-adapter
     ports:
       - "8004:8004"
     env_file:
@@ -162,6 +162,25 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8004
+      EVENT_BUS_URL: amqp://rootpilot:rootpilot@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rootpilot-net
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway-service/Dockerfile
+    container_name: rootpilot-gateway
+    ports:
+      - "8005:8005"
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8005
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
       API_KEYS: ${API_KEYS:-local-dev-key}
     depends_on:
@@ -176,4 +195,5 @@ volumes:
 
 networks:
   rootpilot-net:
+    name: rootpilot-net
     driver: bridge

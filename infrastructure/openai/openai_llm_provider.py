@@ -1,6 +1,7 @@
 """OpenAI LLM provider adapter implementing the LLMProvider contract."""
 
 import json
+import logging
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, Field
@@ -9,6 +10,8 @@ from pydantic_settings import BaseSettings
 from shared.contracts.interfaces.llm_provider import LLMMessage, LLMProvider, LLMResponse
 
 T = TypeVar("T", bound=BaseModel)
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIProviderConfig(BaseSettings):
@@ -84,9 +87,20 @@ class OpenAILLMProvider(LLMProvider):
             LLMMessage(role=m.role, content=m.content + instruction) if m.role == "system" else m for m in messages
         ]
         fbk = self._build_kwargs(fallback, model)
-        response = await self._client.chat.completions.create(**fbk)
-        cleaned = self._extract_json(response.choices[0].message.content or "")
-        return schema.model_validate_json(cleaned)
+        try:
+            response = await self._client.chat.completions.create(**fbk)
+            cleaned = self._extract_json(response.choices[0].message.content or "")
+            return schema.model_validate_json(cleaned)
+        except Exception:
+            logger.exception(
+                "LLM fallback also failed — returning empty %s",
+                schema.__name__,
+                extra={"model": model or self._config.default_model},
+            )
+            try:
+                return schema.model_construct()
+            except Exception:
+                return schema()
 
     async def embed(self, text: str, model: str | None = None) -> list[float]:
         model = model or "text-embedding-3-small"

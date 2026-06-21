@@ -1,10 +1,12 @@
 """Production entry point — wires concrete infrastructure into the service."""
 
+from app.graph_data import build_astronomy_shop_graph
 from app.main import create_app
 
 from shared.config import BaseAppSettings
 from shared.contracts import EventBus, ObservabilityProvider
 from shared.contracts.interfaces.incident_store import IncidentStore
+from shared.domain.graph.store import GraphStore
 
 
 async def _create_rabbitmq_bus(url: str) -> EventBus:
@@ -30,6 +32,10 @@ async def _create_incident_store(settings) -> IncidentStore:
     return store
 
 
+def _create_graph_store() -> GraphStore:
+    return build_astronomy_shop_graph()
+
+
 def _create_otel_observability(settings: BaseAppSettings) -> ObservabilityProvider:
     from infrastructure.monitoring.otel.otel_observability_provider import OTelObservabilityProvider
 
@@ -39,5 +45,6 @@ def _create_otel_observability(settings: BaseAppSettings) -> ObservabilityProvid
 app = create_app(
     event_bus_factory=_create_rabbitmq_bus,
     incident_store_factory=_create_incident_store,
+    graph_store_factory=_create_graph_store,
     observability_factory=_create_otel_observability,
 )

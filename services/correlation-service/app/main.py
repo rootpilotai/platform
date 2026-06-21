@@ -13,12 +13,14 @@ from shared.contracts.events import EventTopic
 from shared.contracts.interfaces.incident_store import IncidentStore
 from shared.contracts.interfaces.observability import ObservabilityProvider
 from shared.domain.correlation.engine import CorrelationEngine
+from shared.domain.graph.store import GraphStore
 from shared.domain.timeline.services import TimelineReconstructor
 
 logger = logging.getLogger(__name__)
 
 EventBusFactory = Callable[[str], Awaitable[EventBus]]
 IncidentStoreFactory = Callable[[CorrelationServiceSettings], Awaitable[IncidentStore]]
+GraphStoreFactory = Callable[[], GraphStore]
 ObservabilityFactory = Callable[[BaseAppSettings], ObservabilityProvider]
 
 
@@ -34,26 +36,25 @@ def _noop_observability(_settings: BaseAppSettings) -> ObservabilityProvider:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings: CorrelationServiceSettings = load_settings(CorrelationServiceSettings)
-    app.state.settings = settings
+    settings: CorrelationServiceSettings = app.state.settings
 
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
 
-    observability_factory: ObservabilityFactory | None = getattr(app.state, "_observability_factory", None)
-    if observability_factory is not None:
-        observability = observability_factory(settings)
-        observability.setup(app)
-
     reconstructor = TimelineReconstructor(
         window_duration_seconds=settings.timeline_window_duration,
     )
-    engine = CorrelationEngine()
+
+    graph_store_factory: GraphStoreFactory | None = getattr(app.state, "_graph_store_factory", None)
+    graph_store = graph_store_factory() if graph_store_factory else None
+
+    engine = CorrelationEngine(store=graph_store)
 
     app.state.reconstructor = reconstructor
     app.state.engine = engine
+    app.state.graph_store = graph_store
 
     incident_store_factory: IncidentStoreFactory | None = getattr(app.state, "_incident_store_factory", None)
     if incident_store_factory is not None:
@@ -70,6 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             reconstructor=reconstructor,
             event_bus=event_bus,
             incident_store=getattr(app.state, "incident_store", None),
+            graph_store=getattr(app.state, "graph_store", None),
             window_seconds=settings.correlation_window_seconds,
             min_events=settings.correlation_min_events,
             min_score=settings.correlation_min_score,
@@ -105,6 +107,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app(
     event_bus_factory: EventBusFactory | None = None,
     incident_store_factory: IncidentStoreFactory | None = None,
+    graph_store_factory: GraphStoreFactory | None = None,
     observability_factory: ObservabilityFactory | None = None,
 ) -> FastAPI:
     app = FastAPI(
@@ -112,9 +115,15 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+    settings = load_settings(CorrelationServiceSettings)
+    app.state.settings = settings
     app.state._event_bus_factory = event_bus_factory
     app.state._incident_store_factory = incident_store_factory
+    app.state._graph_store_factory = graph_store_factory
     app.state._observability_factory = observability_factory
+    if observability_factory is not None:
+        observability = observability_factory(settings)
+        observability.setup(app)
     app.include_router(health.router)
     app.include_router(timeline.router)
     app.include_router(correlation.router)

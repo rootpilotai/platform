@@ -17,6 +17,7 @@ from shared.contracts.schemas.notification import NotificationMessage
 logger = logging.getLogger(__name__)
 
 DEAD_LETTER_TOPIC = EventTopic.NOTIFICATION_DEAD_LETTER
+_MIN_CONFIDENCE_FOR_NOTIFICATION = 0.1
 
 EventBusFactory = Callable[[str], Awaitable[EventBus]]
 NotificationRouterFactory = Callable[[], NotificationRouter]
@@ -31,6 +32,17 @@ def _build_notification(event: Event) -> NotificationMessage | None:
         return None
 
     summary = payload.summary or {}
+    overall_confidence = summary.get("overall_confidence", 0.0)
+
+    if overall_confidence < _MIN_CONFIDENCE_FOR_NOTIFICATION:
+        logger.debug(
+            "Suppressing notification — overall_confidence %.2f below threshold %.1f (incident=%s)",
+            overall_confidence,
+            _MIN_CONFIDENCE_FOR_NOTIFICATION,
+            payload.incident_id,
+        )
+        return None
+
     title = summary.get("title", "Investigation Completed")
     incident_id = payload.incident_id
 

@@ -21,6 +21,7 @@ class IncidentContextAggregator:
         severity: str = "UNKNOWN",
         title: str = "",
         detected_at: datetime | None = None,
+        reachable_services: set[str] | None = None,
     ) -> IncidentContext:
         state = ContextBuilderState(
             incident_id=incident_id,
@@ -29,6 +30,7 @@ class IncidentContextAggregator:
             title=title,
             detected_at=detected_at,
             events=events,
+            reachable_services=sorted(reachable_services or []),
         )
 
         for builder in self._builders:
@@ -45,6 +47,7 @@ class IncidentContextAggregator:
             ungrouped_events=state.ungrouped_events,
             impacts=state.impacts,
             trace_groups=state.trace_groups,
+            reachable_services=state.reachable_services,
             event_count=len(events),
             service_count=len({ev.service_name for ev in events if ev.service_name}),
             trace_count=len({ev.trace_id for ev in events if ev.trace_id}),

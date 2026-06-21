@@ -10,7 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir --no-deps .
 
 COPY services/gateway-service/app ./app
+COPY services/gateway-service/run.py ./run.py
 
-EXPOSE 8004
+EXPOSE 8005
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004"]
+CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8005"]

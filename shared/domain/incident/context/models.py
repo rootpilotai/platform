@@ -49,6 +49,10 @@ class ImpactAnalysis(BaseModel):
     propagation_paths: list[list[str]] = Field(
         default_factory=list, description="Explicit dependency propagation paths."
     )
+    silent_dependencies: list[str] = Field(
+        default_factory=list,
+        description="Known downstream dependencies that produced zero events — may indicate a silent root cause.",
+    )
 
 
 class IncidentContext(BaseModel):
@@ -70,6 +74,10 @@ class IncidentContext(BaseModel):
 
     impacts: list[ImpactAnalysis] = Field(default_factory=list, description="Impact analysis per affected service.")
     trace_groups: list[TraceGroup] = Field(default_factory=list, description="Span trees found in the event set.")
+    reachable_services: list[str] = Field(
+        default_factory=list,
+        description="Services confirmed reachable (sent telemetry) but without failure signals.",
+    )
 
     event_count: int = Field(default=0, description="Total input event count.")
     service_count: int = Field(default=0, description="Unique services involved.")

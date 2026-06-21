@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.config import OtelAdapterSettings
 from app.routers import health, otlp
 from app.services.otel_normalizer import OtelNormalizer
+from app.services.signal_extractor import SignalExtractor
 from shared.config import BaseAppSettings, load_settings
 from shared.contracts import EventBus, ObservabilityProvider
 
@@ -37,22 +38,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
 
-    obs_factory: ObservabilityFactory | None = getattr(app.state, "_observability_factory", None)
-    provider = obs_factory(settings) if obs_factory else _noop_observability(settings)
-    provider.setup(app)
-
     factory: EventBusFactory | None = getattr(app.state, "_event_bus_factory", None)
     if factory is not None:
         event_bus = await factory(settings.event_bus_url)
         app.state.event_bus = event_bus
     else:
         logger.warning("No event bus factory configured — events will be logged but not published")
+        app.state.event_bus = None
 
     normalizer = OtelNormalizer(
         source=settings.source_name,
         latency_threshold_ms=settings.anomaly_latency_threshold_ms,
     )
     app.state.normalizer = normalizer
+
+    extractor = SignalExtractor(
+        drop_collector_self_monitoring=settings.drop_collector_self_monitoring,
+    )
+    app.state.extractor = extractor
 
     logger.info("Service started", extra={"service": settings.service_name})
     yield
@@ -74,6 +77,14 @@ def create_app(
     )
     app.state._event_bus_factory = event_bus_factory
     app.state._observability_factory = observability_factory
+
+    # Observability must be set up before the app starts (middleware must be
+    # registered before uvicorn begins serving). We use a throwaway settings
+    # instance here; the real settings are loaded again during lifespan.
+    if observability_factory is not None:
+        provider = observability_factory(OtelAdapterSettings())
+        provider.setup(app)
+
     app.include_router(health.router)
     app.include_router(otlp.router)
     return app

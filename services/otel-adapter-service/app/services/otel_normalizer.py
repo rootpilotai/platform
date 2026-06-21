@@ -88,6 +88,11 @@ def _attrs_to_tags(attributes: Any) -> dict[str, str]:
     return tags
 
 
+_SERVICE_NAME_ALIASES: dict[str, str] = {
+    "frontend-web": "frontend",
+}
+
+
 class OtelNormalizer:
     def __init__(
         self,
@@ -96,6 +101,10 @@ class OtelNormalizer:
     ) -> None:
         self._source = source
         self._latency_threshold_ms = latency_threshold_ms
+
+    def _resolve_source(self, resource_tags: dict[str, str]) -> str:
+        raw = resource_tags.get("service.name", self._source)
+        return _SERVICE_NAME_ALIASES.get(raw, raw)
 
     def normalize_metrics(self, resource_metrics: Sequence[Any]) -> list[TelemetryEvent]:
         events: list[TelemetryEvent] = []
@@ -146,7 +155,7 @@ class OtelNormalizer:
                 value=value,
                 unit=unit,
                 tags=tags,
-                source=self._source,
+                source=self._resolve_source(tags),
                 timestamp=ts,
                 severity=severity,
             )
@@ -176,6 +185,14 @@ class OtelNormalizer:
         status_code = getattr(span.status, "code", 0) if span.HasField("status") else 0
         is_error = status_code == 2
 
+        http_code_str = tags.get("http.status_code", tags.get("http.response.status_code", ""))
+        try:
+            http_code = int(http_code_str)
+            if http_code >= 500:
+                is_error = True
+        except (ValueError, TypeError):
+            pass
+
         if is_error:
             status_desc = getattr(span.status, "message", "") if span.HasField("status") else ""
             tags["status.message"] = status_desc
@@ -184,7 +201,7 @@ class OtelNormalizer:
                 value=1.0,
                 unit=None,
                 tags=tags,
-                source=self._source,
+                source=self._resolve_source(tags),
                 timestamp=end_time,
                 trace_id=trace_id,
                 span_id=span_id,
@@ -200,7 +217,7 @@ class OtelNormalizer:
                 value=duration_ms,
                 unit="ms",
                 tags=tags,
-                source=self._source,
+                source=self._resolve_source(tags),
                 timestamp=end_time,
                 trace_id=trace_id,
                 span_id=span_id,
@@ -215,7 +232,7 @@ class OtelNormalizer:
             value=duration_ms,
             unit="ms",
             tags=tags,
-            source=self._source,
+            source=self._resolve_source(tags),
             timestamp=end_time,
             trace_id=trace_id,
             span_id=span_id,
@@ -236,7 +253,7 @@ class OtelNormalizer:
                 metric=f"span_event.{span_event_proto.name or 'unknown'}",
                 value=1.0,
                 tags=se_tags,
-                source=self._source,
+                source=self._resolve_source(se_tags),
                 timestamp=se_time,
                 trace_id=trace_id,
                 span_id=span_id,
@@ -274,7 +291,7 @@ class OtelNormalizer:
             metric="log.record",
             value=1.0,
             tags=tags,
-            source=self._source,
+            source=self._resolve_source(tags),
             timestamp=ts,
             trace_id=trace_id,
             span_id=span_id,
@@ -323,7 +340,7 @@ class OtelNormalizer:
             for dp in metric.histogram.data_points:
                 count_val = float(dp.count)
                 points.append((count_val, dp.attributes, _ts_to_dp_time(dp)))
-                if dp.HasField("sum") and dp.HasField("count") and dp.count > 0:
+                if dp.HasField("sum") and dp.count > 0:
                     avg = dp.sum / dp.count
                     points.append((avg, dp.attributes, _ts_to_dp_time(dp)))
 

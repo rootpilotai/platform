@@ -31,6 +31,9 @@ htmlcov/
 rabbitmq-data/
 mnesia/
 
+# Cloned demo (standalone git repo, not a submodule)
+opentelemetry-demo/
+
 # OS files
 .DS_Store
 Thumbs.db

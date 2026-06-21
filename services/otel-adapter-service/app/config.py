@@ -24,3 +24,7 @@ class OtelAdapterSettings(BaseAppSettings):
         default="otel-adapter",
         description="Source name stamped on normalized TelemetryEvents.",
     )
+    drop_collector_self_monitoring: bool = Field(
+        default=True,
+        description="Drop telemetry from the OTEL collector itself (otelcol-contrib).",
+    )

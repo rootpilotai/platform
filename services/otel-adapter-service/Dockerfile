@@ -10,7 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir --no-deps .
 
 COPY services/otel-adapter-service/app ./app
+COPY services/otel-adapter-service/run.py ./run.py
 
 EXPOSE 8004
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004"]
+CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8004"]

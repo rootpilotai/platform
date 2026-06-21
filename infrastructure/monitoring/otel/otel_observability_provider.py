@@ -17,5 +17,8 @@ class OTelObservabilityProvider(ObservabilityProvider):
 
     def setup(self, app: FastAPI) -> None:
         setup_tracing(app, self._settings)
-        app.add_middleware(OpenTelemetryMiddleware)
+        try:
+            app.add_middleware(OpenTelemetryMiddleware)
+        except RuntimeError:
+            logger.warning("OpenTelemetryMiddleware already added or app already started — skipping")
         logger.info("OpenTelemetry observability configured", extra={"service": self._settings.service_name})

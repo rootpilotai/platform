@@ -9,6 +9,8 @@ from shared.domain.correlation.engine import CorrelationEngine
 from shared.domain.correlation.enums import CorrelationSignal
 from shared.domain.correlation.grouping import TraceGroupingService
 from shared.domain.correlation.grouping.models import TraceGroup
+from shared.domain.graph.store import GraphStore
+from shared.domain.graph.traversal import GraphTraversal
 from shared.domain.incident.context.models import (
     AggregatedCorrelationGroup,
     AggregatedTimeline,
@@ -42,6 +44,7 @@ class ContextBuilderState(BaseModel):
     ungrouped_events: list[str] = Field(default_factory=list)
     impacts: list[ImpactAnalysis] = Field(default_factory=list)
     trace_groups: list[TraceGroup] = Field(default_factory=list)
+    reachable_services: list[str] = Field(default_factory=list)
 
 
 class ContextBuilder(ABC):
@@ -134,22 +137,32 @@ class TraceBuilder(ContextBuilder):
 
 
 class ImpactBuilder(ContextBuilder):
-    """Analyze upstream causes and downstream impact for affected services."""
+    """Analyze upstream causes and downstream impact for affected services.
+
+    Uses the dependency graph to:
+    - Identify upstream (ancestor) services that may be root causes.
+    - Identify downstream (descendant) services affected by the failure.
+    - Detect *silent dependencies* — known downstream services with zero events,
+      which may indicate the actual root cause is unreachable.
+    """
 
     weight = 40
 
-    def __init__(self, traversal) -> None:
-        self._traversal = traversal
+    def __init__(self, store: GraphStore) -> None:
+        self._store = store
+        self._traversal = GraphTraversal(store)
 
     async def build(self, state: ContextBuilderState) -> None:
         if state.timeline is None or not state.timeline.windows:
             return
 
         affected_services: set[str] = set()
+        all_event_services: set[str] = set()
         for window in state.timeline.windows:
             for ev in window.events:
                 if ev.service_name:
                     affected_services.add(ev.service_name)
+                    all_event_services.add(ev.service_name)
 
         if not affected_services:
             return
@@ -158,6 +171,10 @@ class ImpactBuilder(ContextBuilder):
         for svc in sorted(affected_services):
             upstream = await self._traversal.get_upstream(svc)
             downstream = await self._traversal.get_downstream(svc)
+
+            direct = [e.target for e in await self._store.get_outgoing(svc)]
+            silent = [d for d in direct if d not in all_event_services]
+
             paths: list[list[str]] = []
             for cause in upstream:
                 found = await self._traversal.find_paths(cause, svc, max_depth=10)
@@ -168,6 +185,7 @@ class ImpactBuilder(ContextBuilder):
                     upstream_causes=upstream,
                     downstream_impact=downstream,
                     propagation_paths=paths,
+                    silent_dependencies=silent,
                 )
             )
         state.impacts = impacts

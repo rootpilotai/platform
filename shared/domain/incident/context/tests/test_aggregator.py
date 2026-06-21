@@ -7,7 +7,6 @@ import pytest
 from shared.domain.graph.enums import DependencyType
 from shared.domain.graph.models import DependencyEdge
 from shared.domain.graph.store import InMemoryGraphStore
-from shared.domain.graph.traversal import GraphTraversal
 from shared.domain.incident.context.aggregator import IncidentContextAggregator
 from shared.domain.incident.context.builders import (
     ContextBuilder,
@@ -109,13 +108,12 @@ class TestAggregatorAllBuilders:
 
     @pytest.fixture
     def aggregator(self, graph_store: InMemoryGraphStore) -> IncidentContextAggregator:
-        traversal = GraphTraversal(graph_store)
         return IncidentContextAggregator(
             builders=[
                 TimelineBuilder(),
                 CorrelationBuilder(),
                 TraceBuilder(),
-                ImpactBuilder(traversal),
+                ImpactBuilder(graph_store),
             ]
         )
 

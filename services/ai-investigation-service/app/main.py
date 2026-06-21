@@ -52,6 +52,17 @@ async def _handle_investigation_requested(
 
     try:
         context = IncidentContext(**requested.context)
+        logger.info(
+            "Reconstructed IncidentContext",
+            extra={
+                "incident_id": requested.incident_id,
+                "event_count": context.event_count,
+                "service_count": context.service_count,
+                "impacts": len(context.impacts),
+                "reachable_services": len(context.reachable_services),
+                "trace_groups": len(context.trace_groups),
+            },
+        )
     except Exception:
         logger.exception(
             "Failed to reconstruct IncidentContext from event payload",
@@ -60,6 +71,15 @@ async def _handle_investigation_requested(
         return
 
     result = await pipeline.run(context)
+
+    top = result.summary.root_causes[0] if result.summary.root_causes else None
+    logger.info(
+        "Investigation result — incident=%s top_root_cause=%s confidence=%.2f duration=%.0fms",
+        requested.incident_id,
+        top.service if top else "none",
+        top.confidence if top else 0.0,
+        result.duration_ms,
+    )
 
     if investigation_store is not None:
         await investigation_store.store(requested.investigation_id, result)
@@ -83,20 +103,12 @@ async def _handle_investigation_requested(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings: InvestigationServiceConfig = load_settings(InvestigationServiceConfig)
-    app.state.settings = settings
+    settings: InvestigationServiceConfig = app.state.settings
 
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(levelname)s\t%(name)s\t%(message)s",
     )
-
-    observability_factory: ObservabilityFactory | None = getattr(app.state, "_observability_factory", None)
-    if observability_factory is not None:
-        provider = observability_factory(settings)
-        provider.setup(app)
-    else:
-        _noop_observability(settings).setup(app)
 
     llm_factory: LLMProviderFactory | None = getattr(app.state, "_llm_provider_factory", None)
     pipeline = None
@@ -162,10 +174,17 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+    settings = load_settings(InvestigationServiceConfig)
+    app.state.settings = settings
     app.state._event_bus_factory = event_bus_factory
     app.state._investigation_store_factory = investigation_store_factory
     app.state._llm_provider_factory = llm_provider_factory
     app.state._observability_factory = observability_factory
+    if observability_factory is not None:
+        provider = observability_factory(settings)
+        provider.setup(app)
+    else:
+        _noop_observability(settings).setup(app)
     app.include_router(health.router)
     app.include_router(investigate.router)
     return app

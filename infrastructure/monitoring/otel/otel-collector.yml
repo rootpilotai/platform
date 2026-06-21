@@ -17,7 +17,7 @@ exporters:
     endpoint: "http://otel-adapter-service:8004"
     tls:
       insecure: true
-    encoding: protobuf
+    compression: none
 
 processors:
   batch:

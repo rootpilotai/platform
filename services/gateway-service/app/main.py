@@ -42,13 +42,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
 
-    observability_factory: ObservabilityFactory | None = (
-        getattr(app.state, "_observability_factory", None) or _noop_observability
-    )
-    observability = observability_factory(settings)
-    observability.setup(app)
-    app.state._observability = observability
-
     incident_store_factory: IncidentStoreFactory | None = getattr(app.state, "_incident_store_factory", None)
     if incident_store_factory:
         incident_store = await incident_store_factory(settings)
@@ -98,7 +91,16 @@ def create_app(
     app.state._incident_store_factory = incident_store_factory
     app.state._investigation_store_factory = investigation_store_factory
     app.state._api_key_store_factory = api_key_store_factory
-    app.state._observability_factory = observability_factory
+
+    # Observability must be set up before the app starts (middleware must be
+    # registered before uvicorn begins serving).
+    obs = (
+        _noop_observability(GatewayServiceSettings())
+        if observability_factory is None
+        else observability_factory(GatewayServiceSettings())
+    )
+    obs.setup(app)
+    app.state._observability = obs
 
     app.include_router(health.router)
     app.include_router(incidents.router)

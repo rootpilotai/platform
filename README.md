@@ -1,116 +1,162 @@
 # RootPilot
 
-> Autonomous Incident Investigation Platform
+> **Autonomous Incident Investigation Platform**
 
-RootPilot is an AI-powered incident investigation platform designed for cloud-native and distributed systems.
+RootPilot is an event-driven platform that transforms distributed telemetry into AI-assisted incident investigations.
 
-The platform leverages observability pipelines, telemetry correlation, distributed tracing, and AI investigation workflows to analyze production incidents, identify probable root causes, and generate actionable remediation insights.
+Instead of helping engineers collect more telemetry, RootPilot focuses on the next problem: understanding **why an incident happened**.
 
----
-
-# Vision
-
-Modern distributed systems generate massive amounts of:
-
-* logs
-* traces
-* metrics
-* deployment events
-* infrastructure telemetry
-
-During incidents, engineers spend significant time manually:
-
-* correlating failures
-* reconstructing timelines
-* tracing dependencies
-* validating hypotheses
-* identifying root causes
-
-RootPilot aims to automate and accelerate this investigation process using AI-assisted operational intelligence.
+It integrates with existing observability ecosystems, correlates operational signals across services, reconstructs failure timelines, and generates structured root cause investigations with confidence scoring and remediation suggestions.
 
 ---
 
-# Core Objectives
+# Why RootPilot?
 
-* AI-powered root cause analysis
+Modern cloud-native systems already produce enormous amounts of telemetry through platforms such as OpenTelemetry, Elasticsearch, Grafana, Prometheus, and cloud-native observability stacks.
+
+The challenge is no longer collecting data.
+
+The challenge is investigating incidents.
+
+When an outage occurs, engineers must manually:
+
+* correlate logs, traces, and metrics
+* reconstruct request flows
+* identify affected services
+* validate hypotheses
+* determine the most probable root cause
+
+RootPilot automates this investigation workflow using an event-driven architecture and AI-assisted operational intelligence.
+
+---
+
+# Current Architecture
+
+```text
+Applications / Services
+        │
+        ▼
+OpenTelemetry Collector
+        │
+        ▼
+OTEL Adapter Service
+(Normalization + Signal Extraction)
+        │
+        ▼
+RabbitMQ (telemetry.ingested)
+        │
+        ▼
+Correlation Service
+        │
+RabbitMQ (investigation.requested)
+        │
+        ▼
+AI Investigation Service
+        │
+        ├──────────────► Elasticsearch
+        │               (Incidents & Investigations)
+        │
+        ▼
+RabbitMQ (investigation.completed)
+        │
+        ▼
+Notification Service
+(Slack / Discord)
+
+Gateway Service
+        │
+        ▼
+Search & Investigation APIs
+```
+
+---
+
+# Core Features
+
+* OpenTelemetry ingestion
+* Event-driven microservices
 * Distributed telemetry correlation
-* Incident timeline reconstruction
-* Event-driven investigation workflows
-* Cloud-native observability integration
-* Provider-agnostic architecture
-* Production-grade engineering patterns
+* Timeline reconstruction
+* AI-powered root cause analysis
+* Elasticsearch-backed investigation history
+* Gateway APIs secured with API keys
+* Slack and Discord notifications
+* Provider abstractions for AI, messaging, storage, and notifications
+* Docker-based local development environment
 
 ---
 
-# Architecture Principles
+# Design Principles
 
-RootPilot is intentionally designed around:
+## Event-Driven First
 
-## Modular Architecture
+All platform components communicate asynchronously through RabbitMQ.
 
-Infrastructure providers are abstracted through interfaces to enable future extensibility.
+This enables independent scaling of ingestion, correlation, AI investigation, persistence, and notification services.
+
+---
+
+## Provider Agnostic
+
+Infrastructure providers are abstracted behind interfaces.
 
 Examples:
 
 * RabbitMQ → Kafka
-* OpenAI → Anthropic/Ollama
-* Elasticsearch → alternative telemetry stores
+* OpenAI → Anthropic / local models
+* Elasticsearch → alternative storage providers
+* Slack → Teams / Email / PagerDuty
+
+This keeps the platform independent of vendor-specific implementations.
 
 ---
 
-## Event-Driven Communication
+## AI Investigates Incidents — Not Raw Telemetry
 
-Internal services communicate asynchronously through messaging infrastructure.
+One of the key architectural learnings from validating against the OpenTelemetry Demo environment was that AI should not process every telemetry event.
 
-Initial provider:
+Instead:
 
-* RabbitMQ
+```text
+Raw Telemetry
+      │
+      ▼
+Signal Extraction
+      │
+      ▼
+Correlation
+      │
+      ▼
+Incident Context
+      │
+      ▼
+AI Investigation
+```
 
-Future support:
-
-* Kafka
-* NATS
-
----
-
-## Observability-First Design
-
-RootPilot itself is designed to be observable using:
-
-* logs
-* traces
-* metrics
-* health checks
-
-OpenTelemetry integration is planned from early development stages.
+The signal extraction layer reduces operational noise before correlation, allowing the investigation pipeline to focus only on meaningful operational signals.
 
 ---
 
-# Planned Services
+# Repository Structure
 
-## Ingestion Service
+```text
+services/
+├── ai-investigation-service
+├── correlation-service
+├── gateway-service
+├── ingestion-service
+├── notification-service
+└── otel-adapter-service
 
-Responsible for telemetry collection and normalization.
-
-## Correlation Service
-
-Responsible for contextual correlation and timeline reconstruction.
-
-## AI Investigation Service
-
-Responsible for root cause analysis and remediation generation.
-
-## Incident Service
-
-Responsible for incident orchestration and lifecycle management.
-
-## Gateway Service
-
-Responsible for API aggregation and external access.
+shared/
+infrastructure/
+docs/
+scripts/
+```
 
 ---
 
-# Initial Tech Stack
+# Technology Stack
 
 ## Backend
 
@@ -127,144 +173,81 @@ Responsible for API aggregation and external access.
 * OpenTelemetry
 * Elasticsearch
 
-## Storage
-
-* PostgreSQL
-* Elasticsearch
-
-## AI
-
-* LangGraph
-* OpenAI APIs
-
 ## Infrastructure
 
 * Docker
-* Kubernetes
+* Docker Compose
+
+## AI
+
+* OpenAI-compatible provider abstraction
 
 ---
 
-# Repository Structure
-
-```text
-services/
-shared/
-infrastructure/
-docs/
-scripts/
-```
-
----
-
-# Development Setup
+# Development
 
 RootPilot targets Python 3.13.
 
-The expected local version is defined in:
+Create a virtual environment:
 
-```text
-.python-version
-```
-
-Project dependencies, development dependencies, and pytest discovery are defined
-in:
-
-```text
-pyproject.toml
-```
-
-Create a local virtual environment from the repository root:
-
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+source .venv/bin/activate
+pip install -e ".[dev]"
 ```
 
 Run tests:
 
-```powershell
-python -m pytest
+```bash
+pytest
 ```
 
-Run only the shared configuration tests:
+Or start the local development environment:
 
-```powershell
-python -m pytest shared\config\tests
+```bash
+docker compose up
 ```
 
 ---
 
 # Documentation
 
-## Core Documents
-
-* `docs/vision.md`
-* `docs/architecture.md`
-* `docs/configuration.md`
-* `docs/roadmap.md`
-* `docs/project-context.md`
-
----
-
-## Architecture Decision Records (ADRs)
-
-RootPilot maintains ADRs to document important architectural decisions and tradeoffs.
-
-Examples:
-
-* monorepo strategy
-* messaging system selection
-* infrastructure abstraction patterns
-* observability standards
-
-ADRs are located in:
+Project documentation is located under:
 
 ```text
-docs/ADRs/
+docs/
 ```
+
+including:
+
+* Vision
+* Architecture
+* Configuration
+* Roadmap
+* Architecture Decision Records (ADRs)
+
+The ADR collection documents important architectural decisions, trade-offs, and lessons learned throughout the project's evolution.
 
 ---
 
 # Current Status
 
-RootPilot is currently in the foundational architecture phase.
+Current capabilities include:
 
-Initial development priorities:
+* ✅ OpenTelemetry integration
+* ✅ Event-driven investigation workflow
+* ✅ Distributed telemetry correlation
+* ✅ AI-powered incident investigation
+* ✅ Elasticsearch persistence
+* ✅ Gateway APIs
+* ✅ Slack & Discord notifications
 
-* repository structure
-* infrastructure abstractions
-* event-driven communication
-* telemetry ingestion
-* AI investigation workflows
+Active areas of development:
 
----
-
-# Long-Term Vision
-
-Potential future capabilities:
-
-* autonomous remediation
-* Kubernetes diagnostics
-* deployment impact analysis
-* distributed tracing intelligence
-* anomaly prediction
-* multi-cluster observability
-* AI-native operational intelligence
-
----
-
-# Engineering Philosophy
-
-RootPilot is intentionally:
-
-* backend-heavy
-* infrastructure-oriented
-* AI-assisted
-* production-minded
-
-The goal is to build a realistic engineering platform rather than a simple AI demo or chatbot wrapper.
+* 🚧 Signal extraction refinement
+* 🚧 Correlation quality improvements
+* 🚧 Production observability connectors
+* 🚧 Topology-aware investigations
 
 ---
 
